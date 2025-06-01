@@ -12,20 +12,13 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "camera.h"
-
-const unsigned int SCREEN_HEIGHT = 600;
-const unsigned int SCREEN_WIDTH = 800;
-
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
-float lastX = SCREEN_WIDTH / 2.0f;
-float lastY = SCREEN_HEIGHT / 2.0f;
-bool firstMouse = true;
+#include "init.h"
+#include "init_shaders.h"
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-void processInput(GLFWwindow *window)
-{
+void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
@@ -39,125 +32,13 @@ void processInput(GLFWwindow *window)
         camera.ProcessKeyboard(RIGHT, deltaTime);
 }
 
-void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
-{
-    float xpos = static_cast<float>(xposIn);
-    float ypos = static_cast<float>(yposIn);
-
-    if (firstMouse)
-    {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
-    }
-
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; // y-coords go bottom to top
-
-    lastX = xpos;
-    lastY = ypos;
-
-    camera.ProcessMouseMovement(xoffset, yoffset);
-}
-
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
-{
-    camera.ProcessMouseScroll(static_cast<float>(yoffset));
-}
-
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-  glViewport(0, 0, width, height);
-}
-
-std::string readShaderSource(const std::string& path) {
-  std::ifstream shaderFile;
-  shaderFile.open(path);
-
-  if (!shaderFile.is_open()) {
-    std::cout << "Failed to read shader source from file " << path << std::endl;
-    exit(1);
-  }
-
-  std::stringstream shaderStream;
-  shaderStream << shaderFile.rdbuf();
-  shaderFile.close();
-
-  return shaderStream.str();
-}
-
 int main() {
-    // glfw initialization
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
-
-    // glfw window
-    GLFWwindow *window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "engineee", nullptr, nullptr);
+    GLFWwindow* window = glfw_initialization();
     if (!window) {
-      std::cerr << "Failed to create GLFW window" << std::endl;
-      glfwTerminate();
       return -1;
     }
-    glfwMakeContextCurrent(window);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    glfwSetCursorPosCallback(window, mouse_callback);
-    glfwSetScrollCallback(window, scroll_callback);
-
-    // loadl opengl function pointers
-    if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
-      glfwTerminate();
-      std::cerr << "Failed to initialize GLAD" << std::endl;
-      return -1;
-    }
-
-    glEnable(GL_DEPTH_TEST);
-
-    std::string vertexShaderSourceString = readShaderSource("../shader.vs");
-    std::string fragmentShaderSourceString = readShaderSource("../shader.fs");
-    const char* vertexShaderSource = vertexShaderSourceString.c_str();
-    const char* fragmentShaderSource = fragmentShaderSourceString.c_str();
     
-    // shader program - vertex shader + fragment shader
-    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-    // vertex shader compile errors
-    int success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-      glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-      std::cout << "ERROR: Vertex Shader Compilation Failed\n" << infoLog << std::endl;
-    }
-
-    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-    // fragment shader compile errors
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-      glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-      std::cout << "ERROR: Fragment Shader Compilation Failed\n" << infoLog << std::endl;
-    }
-
-    // link shaders into shader program
-    unsigned int shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    // linking errors
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-      glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-      std::cout << "ERROR: Shader Program Linking Failed\n" << infoLog << std::endl;
-    }
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    unsigned int shaderProgram = generate_shader_program();
 
     // Setting Up VBO and VAO
     // NDC coordinates
