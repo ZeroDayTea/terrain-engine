@@ -18,6 +18,13 @@
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+// position and noise value at any point
+struct Point {
+  glm::vec3 pos;
+  float value;
+};
+float isolevel = 0.0f;
+
 void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
@@ -39,6 +46,18 @@ int main() {
     }
     
     unsigned int shaderProgram = generate_shader_program();
+
+    Point cube_corners[8];
+    
+    float s = 0.5f;
+    cube_corners[0] = {glm::vec3(s, s, s), -0.5f};
+    cube_corners[1] = {glm::vec3(s, s, -s), -0.5f};
+    cube_corners[2] = {glm::vec3(s, -s, s), -0.5f};
+    cube_corners[3] = {glm::vec3(s, -s, -s), -0.5f};
+    cube_corners[4] = {glm::vec3(-s, s, s), 0.5f};
+    cube_corners[5] = {glm::vec3(-s, s, -s), 0.5f};
+    cube_corners[6] = {glm::vec3(-s, -s, s), 0.5f};
+    cube_corners[7] = {glm::vec3(-s, -s, -s), 0.5f};
 
     // Setting Up VBO and VAO
     // NDC coordinates

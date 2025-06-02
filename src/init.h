@@ -1,7 +1,3 @@
-#include <iostream>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-
 const unsigned int SCREEN_HEIGHT = 1080;
 const unsigned int SCREEN_WIDTH = 1920;
 float lastX = SCREEN_WIDTH / 2.0f;
