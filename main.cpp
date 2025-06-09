@@ -14,6 +14,7 @@
 #include "camera.h"
 #include "init.h"
 #include "init_shaders.h"
+#include "marching_cubes.h"
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -39,6 +40,14 @@ void processInput(GLFWwindow *window) {
         camera.ProcessKeyboard(RIGHT, deltaTime);
 }
 
+glm::vec3 interpolate_vertices(const Point& p1, const Point& p2) {
+    if (std::abs(p1.value - p2.value) < 0.00001f) {
+      return p1.pos;
+    }
+    float t = (isolevel - p1.value) / (p2.value - p1.value);
+    return p1.pos + t * (p2.pos - p1.pos);
+}
+
 int main() {
     GLFWwindow* window = glfw_initialization();
     if (!window) {
@@ -46,26 +55,93 @@ int main() {
     }
     
     unsigned int shaderProgram = generate_shader_program();
-
-    Point cube_corners[8];
     
+    float cubeSize = 1.0f;
+    // 0: bottom-left-front
+    // 1: bottom-right-front
+    // 2: bottom-right-back
+    // 3: bottom-left-back
+    // 4: top-left-front
+    // 5: top-right-front
+    // 6: top-right-back
+    // 7: top-left-back
+    Point cubeCorners[8];
+   
+    // NDC coordinates of cube (generate locally)
     float s = 0.5f;
-    cube_corners[0] = {glm::vec3(s, s, s), -0.5f};
-    cube_corners[1] = {glm::vec3(s, s, -s), -0.5f};
-    cube_corners[2] = {glm::vec3(s, -s, s), -0.5f};
-    cube_corners[3] = {glm::vec3(s, -s, -s), -0.5f};
-    cube_corners[4] = {glm::vec3(-s, s, s), 0.5f};
-    cube_corners[5] = {glm::vec3(-s, s, -s), 0.5f};
-    cube_corners[6] = {glm::vec3(-s, -s, s), 0.5f};
-    cube_corners[7] = {glm::vec3(-s, -s, -s), 0.5f};
+    cubeCorners[0] = {glm::vec3(-s, -s, -s), -0.5f};
+    cubeCorners[1] = {glm::vec3(s, -s, -s), -0.5f};
+    cubeCorners[2] = {glm::vec3(s, -s, s), -0.5f};
+    cubeCorners[3] = {glm::vec3(-s, -s, s), -0.5f};
+    cubeCorners[4] = {glm::vec3(-s, s, -s), 0.5f};
+    cubeCorners[5] = {glm::vec3(s, s, -s), 0.5f};
+    cubeCorners[6] = {glm::vec3(s, s, s), 0.5f};
+    cubeCorners[7] = {glm::vec3(-s, s, s), 0.5f};
+
+    unsigned int cubePattern = 0;
+    for(int i = 0; i < 8; i++) {
+      if (cubeCorners[i].value < isolevel) cubePattern |= 1 << i;
+    }
+
+    // given an edge, which two points it connects
+    int cornersFromEdge[12][2] = {
+      // edge 0
+      {0, 1},
+      // edge 1
+      {1, 2},
+      // edge 2
+      {2, 3},
+      // edge 3
+      {3, 0},
+      // edge 4
+      {4, 5},
+      // edge 5
+      {5, 6},
+      // edge 6
+      {6, 7},
+      // edge 7
+      {7, 4},
+      // edge 8
+      {0, 4},
+      // edge 9
+      {1, 5},
+      // edge 10
+      {2, 6},
+      // edge 11
+      {3, 7}
+    };
+    
+    std::vector<glm::vec3> triangles;
+    int cubeMask = edgeTable[cubePattern];
+    if (cubeMask != 0) {
+      glm::vec3 interpolatedEdges[12];
+      for(int i = 0; i < 12; i++) {
+        Point p1 = cubeCorners[cornersFromEdge[i][0]];
+        Point p2 = cubeCorners[cornersFromEdge[i][1]];
+        if (cubeMask & (1 << i)) interpolatedEdges[i] = interpolate_vertices(p1, p2);
+      }
+      
+      int* edges = triTable[cubePattern];
+      int i = 0;
+      while(edges[i] != -1) {
+        triangles.push_back(interpolatedEdges[edges[i]]);
+        triangles.push_back(interpolatedEdges[edges[i+1]]);
+        triangles.push_back(interpolatedEdges[edges[i+2]]);
+        i += 3;
+      }
+    }
 
     // Setting Up VBO and VAO
-    // NDC coordinates
-    float vertices[] = {
-      -0.5f, -0.5f, 0.0f,
-      0.5f, -0.5f, 0.0f,
-      0.0f, 0.5f, 0.0f
-    };
+    std::vector<float> vertices;
+    for (const glm::vec3 vert : triangles) {
+      vertices.push_back(vert.x);
+      vertices.push_back(vert.y);
+      vertices.push_back(vert.z);
+    }
+
+    for (const auto& v : vertices) {
+      std::cout << v << std::endl;
+    }
     
     // world space positions
     glm::vec3 trianglePositions[] = {
@@ -78,7 +154,7 @@ int main() {
     glBindVertexArray(VAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
     
     // position attribute 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
@@ -114,7 +190,7 @@ int main() {
         model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, &model[0][0]);
 
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawArrays(GL_TRIANGLES, 0, triangles.size());
       }
       
       glfwSwapBuffers(window);
