@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <random>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -38,6 +39,10 @@ void processInput(GLFWwindow *window) {
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        camera.ProcessKeyboard(UP, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        camera.ProcessKeyboard(DOWN, deltaTime);
 }
 
 glm::vec3 interpolate_vertices(const Point& p1, const Point& p2) {
@@ -55,8 +60,13 @@ int main() {
     }
     
     unsigned int shaderProgram = generate_shader_program();
-    
-    float cubeSize = 1.0f;
+
+    // temp randomness
+    std::mt19937 rng(std::random_device{}());
+    float min_val = -0.5f;
+    float max_val = 0.5f;
+    std::uniform_real_distribution<float> dist(min_val, max_val);
+   
     // 0: bottom-left-front
     // 1: bottom-right-front
     // 2: bottom-right-back
@@ -65,71 +75,83 @@ int main() {
     // 5: top-right-front
     // 6: top-right-back
     // 7: top-left-back
-    Point cubeCorners[8];
-   
-    // NDC coordinates of cube (generate locally)
-    float s = 0.5f;
-    cubeCorners[0] = {glm::vec3(-s, -s, -s), -0.5f};
-    cubeCorners[1] = {glm::vec3(s, -s, -s), -0.5f};
-    cubeCorners[2] = {glm::vec3(s, -s, s), -0.5f};
-    cubeCorners[3] = {glm::vec3(-s, -s, s), -0.5f};
-    cubeCorners[4] = {glm::vec3(-s, s, -s), 0.5f};
-    cubeCorners[5] = {glm::vec3(s, s, -s), 0.5f};
-    cubeCorners[6] = {glm::vec3(s, s, s), 0.5f};
-    cubeCorners[7] = {glm::vec3(-s, s, s), 0.5f};
-
-    unsigned int cubePattern = 0;
-    for(int i = 0; i < 8; i++) {
-      if (cubeCorners[i].value < isolevel) cubePattern |= 1 << i;
-    }
-
-    // given an edge, which two points it connects
-    int cornersFromEdge[12][2] = {
-      // edge 0
-      {0, 1},
-      // edge 1
-      {1, 2},
-      // edge 2
-      {2, 3},
-      // edge 3
-      {3, 0},
-      // edge 4
-      {4, 5},
-      // edge 5
-      {5, 6},
-      // edge 6
-      {6, 7},
-      // edge 7
-      {7, 4},
-      // edge 8
-      {0, 4},
-      // edge 9
-      {1, 5},
-      // edge 10
-      {2, 6},
-      // edge 11
-      {3, 7}
+    float cubeSize = 1.0f;
+    glm::vec3 cornerOffsets[8] = {
+      glm::vec3(0.0f, 0.0f, 0.0f),
+      glm::vec3(1.0f, 0.0f, 0.0f),
+      glm::vec3(1.0f, 0.0f, 1.0f),
+      glm::vec3(0.0f, 0.0f, 1.0f),
+      glm::vec3(0.0f, 1.0f, 0.0f),
+      glm::vec3(1.0f, 1.0f, 0.0f),
+      glm::vec3(1.0f, 1.0f, 1.0f),
+      glm::vec3(0.0f, 1.0f, 1.0f)
     };
-    
     std::vector<glm::vec3> triangles;
-    int cubeMask = edgeTable[cubePattern];
-    if (cubeMask != 0) {
-      glm::vec3 interpolatedEdges[12];
-      for(int i = 0; i < 12; i++) {
-        Point p1 = cubeCorners[cornersFromEdge[i][0]];
-        Point p2 = cubeCorners[cornersFromEdge[i][1]];
-        if (cubeMask & (1 << i)) interpolatedEdges[i] = interpolate_vertices(p1, p2);
-      }
-      
-      int* edges = triTable[cubePattern];
-      int i = 0;
-      while(edges[i] != -1) {
-        triangles.push_back(interpolatedEdges[edges[i]]);
-        triangles.push_back(interpolatedEdges[edges[i+1]]);
-        triangles.push_back(interpolatedEdges[edges[i+2]]);
-        i += 3;
+    for(size_t x = 0; x < 8; x++) {
+      for(size_t y = 0; y < 8; y++) {
+        for(size_t z = 0; z < 8; z++) {
+          Point cubeCorners[8];
+          // NDC coordinates of cube (generate locally)
+          glm::vec3 cubePos = glm::vec3(x, y, z) * cubeSize;
+          for(size_t i = 0; i < 8; i++) {
+            cubeCorners[i].pos = cubePos + (cornerOffsets[i] * cubeSize);
+            cubeCorners[i].value = dist(rng);
+          }
+
+          unsigned int cubePattern = 0;
+          for(int i = 0; i < 8; i++) {
+            if (cubeCorners[i].value < isolevel) cubePattern |= 1 << i;
+          }
+
+          // given an edge, which two points it connects
+          int cornersFromEdge[12][2] = {
+            // edge 0
+            {0, 1},
+            // edge 1
+            {1, 2},
+            // edge 2
+            {2, 3},
+            // edge 3
+            {3, 0},
+            // edge 4
+            {4, 5},
+            // edge 5
+            {5, 6},
+            // edge 6
+            {6, 7},
+            // edge 7
+            {7, 4},
+            // edge 8
+            {0, 4},
+            // edge 9
+            {1, 5},
+            // edge 10
+            {2, 6},
+            // edge 11
+            {3, 7}
+          };
+          
+          int cubeMask = edgeTable[cubePattern];
+          if (cubeMask != 0) {
+            glm::vec3 interpolatedEdges[12];
+            for(int i = 0; i < 12; i++) {
+              Point p1 = cubeCorners[cornersFromEdge[i][0]];
+              Point p2 = cubeCorners[cornersFromEdge[i][1]];
+              if (cubeMask & (1 << i)) interpolatedEdges[i] = interpolate_vertices(p1, p2);
+            }
+            
+            int* edges = triTable[cubePattern];
+            int i = 0;
+            while(edges[i] != -1) {
+              triangles.push_back(interpolatedEdges[edges[i]]);
+              triangles.push_back(interpolatedEdges[edges[i+1]]);
+              triangles.push_back(interpolatedEdges[edges[i+2]]);
+              i += 3;
+            }
+          }
       }
     }
+  }
 
     // Setting Up VBO and VAO
     std::vector<float> vertices;
@@ -139,10 +161,6 @@ int main() {
       vertices.push_back(vert.z);
     }
 
-    for (const auto& v : vertices) {
-      std::cout << v << std::endl;
-    }
-    
     // world space positions
     glm::vec3 trianglePositions[] = {
       glm::vec3(0.0f, 0.0f, 0.0f)
