@@ -48,9 +48,9 @@ int main() {
     // starting a new scope so chunk destructors get called
     {
       std::vector<Chunk> chunks;
-      for(int x = 0; x < 4; ++x) {
-        for(int y = 0; y < 4; ++y) {
-          for(int z = 0; z < 4; ++z) {
+      for(int x = 0; x < 8; ++x) {
+        for(int y = 0; y < 3; ++y) {
+          for(int z = 0; z < 8; ++z) {
             chunks.emplace_back(glm::vec3(x * 16.0f, y * 16.0f, z * 16.0f));
           }
         }

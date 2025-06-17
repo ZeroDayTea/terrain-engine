@@ -83,33 +83,50 @@ void Chunk::generateMesh() {
   for (int x = 0; x < CHUNK_DEPTH; ++x) {
     for (int y = 0; y < CHUNK_WIDTH; ++y) {
       for (int z = 0; z < CHUNK_HEIGHT; ++z) {
-        glm::vec3 samplePos = glm::vec3(x, y, z) * cubeSize + this->chunkPos;
-        double noise3D = 0.0f;
-        double frequency = 0.2f;
-        double amplitude = 0.01f;
-        // octaves
-        for (int j = 0; j < 1; j++) {
-          noise3D +=
-              db::perlin(samplePos.x * frequency, samplePos.z * frequency,
-                         samplePos.y * frequency) *
-              amplitude;
-          frequency *= 0.5f;
-        }
-        this->points[x][y][z] = noise3D;
+        glm::vec3 worldPos = glm::vec3(x, y, z) * cubeSize + this->chunkPos;
+        glm::vec3 samplePos =
+            glm::vec3(worldPos.x * 0.5f, worldPos.y * 0.25f, worldPos.z * 0.5f);
+        // double noise3D = 0.0f;
+        // double frequency = 0.0035f;
+        // double amplitude = 1.0f;
+        // double lacunarity = 2.0f;
+        // double persistence = 0.45f;
+        // // octaves
+        // for (int j = 0; j < 6; j++) {
+        //   double n =
+        //       db::perlin(samplePos.x * frequency, samplePos.z * frequency,
+        //                  samplePos.y * frequency);
+        //   noise3D += n * amplitude;
+        //   amplitude *= persistence;
+        //   frequency *= lacunarity;
+        // }
+        // double floorOffset = 1.0f;
+        // double noiseWeight = 5.0f;
+        // double finalVal = (-worldPos.y + floorOffset) + noise3D *
+        // noiseWeight; this->points[x][y][z] = finalVal; std::cout << finalVal
+        // << std::endl;
+
+        this->points[x][y][z] =
+            db::perlin(double(samplePos.x) * 0.05, double(samplePos.y) * 0.05,
+                       double(samplePos.z) * 0.05);
       }
     }
   }
 
-  for (int x = 0; x < CHUNK_DEPTH; ++x) {
-    for (int y = 0; y < CHUNK_WIDTH; ++y) {
-      for (int z = 0; z < CHUNK_HEIGHT; ++z) {
+  for (int x = 0; x < CHUNK_DEPTH - 1; ++x) {
+    for (int y = 0; y < CHUNK_WIDTH - 1; ++y) {
+      for (int z = 0; z < CHUNK_HEIGHT - 1; ++z) {
+
         Point cubeCorners[8];
-        // NDC coordinates of cube (generate locally)
-        glm::vec3 cubePos = glm::vec3(x, y, z) * cubeSize;
+        glm::vec3 cubePos = glm::vec3(x, y, z);
+
         for (int i = 0; i < 8; i++) {
-          glm::vec3 cornerPosLocal = cubePos + (cornerOffsets[i] * cubeSize);
-          cubeCorners[i].pos = cornerPosLocal;
-          cubeCorners[i].value = this->points[x][y][z];
+          glm::vec3 offset = cornerOffsets[i];
+          cubeCorners[i].pos = (cubePos + offset) * cubeSize;
+          // std::cout << this->points[x][y][z] << std::endl;
+          cubeCorners[i].value =
+              this->points[static_cast<int>(x + offset.x)][static_cast<int>(
+                  y + offset.y)][static_cast<int>(z + offset.z)];
         }
 
         unsigned int cubePattern = 0;
