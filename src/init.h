@@ -4,6 +4,7 @@ float lastX = SCREEN_WIDTH / 2.0f;
 float lastY = SCREEN_HEIGHT / 2.0f;
 
 bool firstMouse = true;
+const float MOUSE_SENSITIVITY = 0.05f;
 
 Camera camera(glm::vec3(16.0f, 20.0f, 24.0f));
 
@@ -22,6 +23,9 @@ void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
 
   lastX = xpos;
   lastY = ypos;
+
+  xoffset *= MOUSE_SENSITIVITY;
+  yoffset *= MOUSE_SENSITIVITY;
 
   camera.ProcessMouseMovement(xoffset, yoffset);
 }
@@ -56,7 +60,7 @@ GLFWwindow *glfw_initialization() {
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
   glfwSetCursorPosCallback(window, mouse_callback);
   glfwSetScrollCallback(window, scroll_callback);
-  // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
   // loadl opengl function pointers
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {

@@ -55,7 +55,9 @@ int main() {
           }
         }
       }
-      
+
+      glm::vec3 lightColor(1.0f, 1.0f, 1.0f);
+      glm::vec3 lightPos(24.0f, 50.0f, 24.0f);
       
       // render loop
       while (!glfwWindowShouldClose(window)) {
@@ -75,6 +77,10 @@ int main() {
 
         glm::mat4 view = camera.GetViewMatrix();
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, &view[0][0]);
+
+        glUniform3fv(glGetUniformLocation(shaderProgram, "lightColor"), 1, &lightColor[0]);
+        glUniform3fv(glGetUniformLocation(shaderProgram, "lightPos"), 1, &lightPos[0]);
+        glUniform3fv(glGetUniformLocation(shaderProgram, "viewPos"), 1, &camera.Position[0]);
 
         for(Chunk& chunk : chunks) {
           chunk.render(shaderProgram);

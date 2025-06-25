@@ -1,5 +1,6 @@
 #include "chunk.h"
 
+#include "glm/geometric.hpp"
 #include "marching_cubes.h"
 
 #define DB_PERLIN_IMPL
@@ -7,6 +8,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <map>
 #include <random>
 #include <vector>
 
@@ -30,6 +32,31 @@ glm::vec3 interpolate_vertices(const Point &p1, const Point &p2,
   // float t = (isolevel - p1.value) / (p2.value - p1.value);
   // return p1.pos + t * (p2.pos - p1.pos);
   return (1.0f / 2.0f) * (p1.pos + p2.pos);
+}
+
+std::vector<glm::vec3> calcNormals(const std::vector<glm::vec3> &vertices) {
+  std::vector<glm::vec3> normals(vertices.size(), glm::vec3(0.0f));
+
+  // over triangles
+  for (size_t i = 0; i < vertices.size(); i += 3) {
+    const glm::vec3 &p1 = vertices[i];
+    const glm::vec3 &p2 = vertices[i + 1];
+    const glm::vec3 &p3 = vertices[i + 2];
+
+    glm::vec3 e1 = p2 - p1;
+    glm::vec3 e2 = p3 - p1;
+    glm::vec3 faceNormal = glm::normalize(glm::cross(e1, e2));
+
+    normals[i] += faceNormal;
+    normals[i + 1] += faceNormal;
+    normals[i + 2] += faceNormal;
+  }
+
+  for (size_t i = 0; i < normals.size(); ++i) {
+    normals[i] = glm::normalize(normals[i]);
+  }
+
+  return normals;
 }
 }; // namespace
 
@@ -83,39 +110,36 @@ void Chunk::generateMesh() {
   for (int x = 0; x < CHUNK_DEPTH; ++x) {
     for (int y = 0; y < CHUNK_WIDTH; ++y) {
       for (int z = 0; z < CHUNK_HEIGHT; ++z) {
-        glm::vec3 worldPos = glm::vec3(x, y, z) * cubeSize + this->chunkPos;
-        glm::vec3 samplePos =
-            glm::vec3(worldPos.x * 0.5f, worldPos.y * 0.25f, worldPos.z * 0.5f);
-        // double noise3D = 0.0f;
-        // double frequency = 0.0035f;
-        // double amplitude = 1.0f;
-        // double lacunarity = 2.0f;
-        // double persistence = 0.45f;
-        // // octaves
-        // for (int j = 0; j < 6; j++) {
-        //   double n =
-        //       db::perlin(samplePos.x * frequency, samplePos.z * frequency,
-        //                  samplePos.y * frequency);
-        //   noise3D += n * amplitude;
-        //   amplitude *= persistence;
-        //   frequency *= lacunarity;
-        // }
+        glm::vec3 worldPos = this->chunkPos + glm::vec3(x, y, z);
+
+        // noise layer properties
+        int octaves = 6;
+        double noise = 0.0f;
+        double frequency = 0.0035f;
+        double amplitude = 1.0f;
+        double lacunarity = 2.0f;
+        double persistence = 0.5f;
+
+        // octaves
+        for (int j = 0; j < octaves; j++) {
+          noise = db::perlin(worldPos.x * frequency, worldPos.z * frequency,
+                             worldPos.y * frequency) *
+                  amplitude;
+          amplitude *= persistence;
+          frequency *= lacunarity;
+        }
+
         // double floorOffset = 1.0f;
         // double noiseWeight = 5.0f;
-        // double finalVal = (-worldPos.y + floorOffset) + noise3D *
-        // noiseWeight; this->points[x][y][z] = finalVal; std::cout << finalVal
-        // << std::endl;
-
-        this->points[x][y][z] =
-            db::perlin(double(samplePos.x) * 0.05, double(samplePos.y) * 0.05,
-                       double(samplePos.z) * 0.05);
+        // double density = (-worldPos.y + floorOffset) + noise * noiseWeight;
+        this->points[x][y][z] = noise;
       }
     }
   }
 
-  for (int x = 0; x < CHUNK_DEPTH - 1; ++x) {
-    for (int y = 0; y < CHUNK_WIDTH - 1; ++y) {
-      for (int z = 0; z < CHUNK_HEIGHT - 1; ++z) {
+  for (int x = 0; x < CHUNK_DEPTH; ++x) {
+    for (int y = 0; y < CHUNK_WIDTH; ++y) {
+      for (int z = 0; z < CHUNK_HEIGHT; ++z) {
 
         Point cubeCorners[8];
         glm::vec3 cubePos = glm::vec3(x, y, z);
@@ -159,10 +183,20 @@ void Chunk::generateMesh() {
   }
 
   // Setting Up VBO and VAO
+  std::vector<glm::vec3> normals = calcNormals(triangles);
+  std::vector<float> vertices;
+  vertices.reserve(triangles.size() * 6);
+
+  size_t i = 0;
   for (const glm::vec3 vert : triangles) {
     vertices.push_back(vert.x);
     vertices.push_back(vert.y);
     vertices.push_back(vert.z);
+
+    vertices.push_back(normals[i].x);
+    vertices.push_back(normals[i].y);
+    vertices.push_back(normals[i].z);
+    i += 1;
   }
 
   std::cout << vertices.size() << std::endl;
@@ -175,12 +209,16 @@ void Chunk::generateMesh() {
   glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float),
                vertices.data(), GL_STATIC_DRAW);
 
-  // position attribute
+  // position
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
+  // normal
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+                        (void *)(3 * sizeof(float)));
+  glEnableVertexAttribArray(1);
 
-  // render triangle
-  glBindVertexArray(VAO);
+  // unbind VAO
+  glBindVertexArray(0);
 }
 
 void Chunk::render(unsigned int shaderProgram) {
@@ -192,5 +230,9 @@ void Chunk::render(unsigned int shaderProgram) {
   glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE,
                      &model[0][0]);
 
+  glBindVertexArray(this->VAO);
+
   glDrawArrays(GL_TRIANGLES, 0, triangles.size());
+
+  glBindVertexArray(0);
 }
