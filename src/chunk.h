@@ -5,6 +5,11 @@
 
 class Chunk {
 public:
+  // chunk size constants
+  static const int CHUNK_WIDTH = 16;
+  static const int CHUNK_HEIGHT = 16;
+  static const int CHUNK_DEPTH = 16;
+
   Chunk(glm::vec3 chunkPosition);
 
   ~Chunk();
@@ -14,11 +19,6 @@ public:
   glm::vec3 chunkPos;
 
 private:
-  // chunk size constants
-  static const int CHUNK_WIDTH = 16;
-  static const int CHUNK_HEIGHT = 16;
-  static const int CHUNK_DEPTH = 16;
-
   // given an edge, which two points it connects
   static const int cornersFromEdge[12][2];
 
@@ -35,7 +35,7 @@ private:
   static const float cubeSize;
 
   // level at which vertices are rendered or not
-  static const double isolevel;
+  static const float isolevel;
 
   unsigned int VAO; // vertex array object
   unsigned int VBO; // vertex buffer object

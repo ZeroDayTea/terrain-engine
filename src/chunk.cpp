@@ -25,12 +25,14 @@ struct Point {
 };
 
 glm::vec3 interpolate_vertices(const Point &p1, const Point &p2,
-                               float isolevel) {
-  // if (std::abs(p1.value - p2.value) < 0.00001f) {
-  //   return p1.pos;
-  // }
-  // float t = (isolevel - p1.value) / (p2.value - p1.value);
-  // return p1.pos + t * (p2.pos - p1.pos);
+                               float isolevel, bool interpolation) {
+  if (interpolation) {
+    // if (std::abs(p1.value - p2.value) < 0.00001f) {
+    //   return p1.pos;
+    // }
+    // float t = (isolevel - p1.value) / (p2.value - p1.value);
+    // return p1.pos + t * (p2.pos - p1.pos);
+  }
   return (1.0f / 2.0f) * (p1.pos + p2.pos);
 }
 
@@ -94,7 +96,7 @@ const glm::vec3 Chunk::cornerOffsets[8] = {
 
 const float Chunk::cubeSize = 1.0f;
 
-const double Chunk::isolevel = 0.0f;
+const float Chunk::isolevel = 0.0f;
 
 Chunk::Chunk(glm::vec3 chunkPosition) : chunkPos(chunkPosition) {
   generateMesh();
@@ -122,17 +124,17 @@ void Chunk::generateMesh() {
 
         // octaves
         for (int j = 0; j < octaves; j++) {
-          noise = db::perlin(worldPos.x * frequency, worldPos.z * frequency,
-                             worldPos.y * frequency) *
+          noise = db::perlin(worldPos.x * frequency, worldPos.y * frequency,
+                             worldPos.z * frequency) *
                   amplitude;
           amplitude *= persistence;
           frequency *= lacunarity;
         }
 
-        // double floorOffset = 1.0f;
-        // double noiseWeight = 5.0f;
-        // double density = (-worldPos.y + floorOffset) + noise * noiseWeight;
-        this->points[x][y][z] = noise;
+        double floorOffset = 1.0f;
+        double noiseWeight = 5.0f;
+        double density = (-worldPos.y + floorOffset) + noise * noiseWeight;
+        this->points[x][y][z] = density;
       }
     }
   }
@@ -166,7 +168,7 @@ void Chunk::generateMesh() {
             Point p1 = cubeCorners[cornersFromEdge[i][0]];
             Point p2 = cubeCorners[cornersFromEdge[i][1]];
             if (cubeMask & (1 << i))
-              interpolatedEdges[i] = interpolate_vertices(p1, p2, isolevel);
+              interpolatedEdges[i] = interpolate_vertices(p1, p2, isolevel, false);
           }
 
           const int *edges = triTable[cubePattern];
@@ -199,7 +201,7 @@ void Chunk::generateMesh() {
     i += 1;
   }
 
-  std::cout << vertices.size() << std::endl;
+  // std::cout << vertices.size() << std::endl;
 
   glGenBuffers(1, &VBO);
   glGenVertexArrays(1, &VAO);
@@ -210,7 +212,7 @@ void Chunk::generateMesh() {
                vertices.data(), GL_STATIC_DRAW);
 
   // position
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
   // normal
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),

@@ -14,7 +14,7 @@
 #include "camera.h"
 #include "init.h"
 #include "init_shaders.h"
-#include "chunk.h"
+#include "world.h"
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -47,14 +47,7 @@ int main() {
 
     // starting a new scope so chunk destructors get called
     {
-      std::vector<Chunk> chunks;
-      for(int x = 0; x < 8; ++x) {
-        for(int y = 0; y < 3; ++y) {
-          for(int z = 0; z < 8; ++z) {
-            chunks.emplace_back(glm::vec3(x * 16.0f, y * 16.0f, z * 16.0f));
-          }
-        }
-      }
+      World world;
 
       glm::vec3 lightColor(1.0f, 1.0f, 1.0f);
       glm::vec3 lightPos(24.0f, 50.0f, 24.0f);
@@ -66,25 +59,25 @@ int main() {
         lastFrame = currentFrame;
 
         processInput(window);
+
+        world.update(camera.Position);
         
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(shaderProgram);
-       
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &projection[0][0]);
 
         glm::mat4 view = camera.GetViewMatrix();
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, &view[0][0]);
+
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &projection[0][0]);
 
         glUniform3fv(glGetUniformLocation(shaderProgram, "lightColor"), 1, &lightColor[0]);
         glUniform3fv(glGetUniformLocation(shaderProgram, "lightPos"), 1, &lightPos[0]);
         glUniform3fv(glGetUniformLocation(shaderProgram, "viewPos"), 1, &camera.Position[0]);
 
-        for(Chunk& chunk : chunks) {
-          chunk.render(shaderProgram);
-        }
+        world.render(shaderProgram);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

@@ -13,7 +13,7 @@ enum Camera_Movement { FORWARD, BACKWARD, LEFT, RIGHT, UP, DOWN };
 const float YAW = -90.0f;
 const float PITCH = 0.0f;
 const float SPEED = 10.5f;
-const float SENSITIVITY = 0.1f;
+const float SENSITIVITY = 2.0f;
 const float ZOOM = 45.0f;
 
 // An abstract camera class that processes input and calculates the
