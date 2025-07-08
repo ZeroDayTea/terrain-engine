@@ -4,12 +4,14 @@
 #include <map>
 #include <glm/glm.hpp>
 
-struct Vec2Compare {
-    bool operator()(const glm::ivec2& a, const glm::ivec2& b) const {
+struct Vec3Compare {
+    bool operator()(const glm::ivec3& a, const glm::ivec3& b) const {
         if (a.x < b.x) return true;
         if (a.x > b.x) return false;
         if (a.y < b.y) return true;
         if (a.y > b.y) return false;
+        if (a.z < b.z) return true;
+        if (a.z > b.z) return false;
         return false;
     }
 };
@@ -26,7 +28,7 @@ public:
 
 private:
     // currently loaded chunks
-    std::map<glm::ivec2, Chunk, Vec2Compare> activeChunks;
+    std::map<glm::ivec3, Chunk, Vec3Compare> activeChunks;
 
     int viewDistance = 4;
 };

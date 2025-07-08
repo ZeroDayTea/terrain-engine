@@ -40,7 +40,8 @@ private:
   unsigned int VAO; // vertex array object
   unsigned int VBO; // vertex buffer object
 
-  double points[CHUNK_DEPTH][CHUNK_WIDTH][CHUNK_HEIGHT];
+  // N + 1 points to generate N cubes
+  float points[CHUNK_DEPTH+1][CHUNK_WIDTH+1][CHUNK_HEIGHT+1];
   std::vector<glm::vec3> triangles;
   std::vector<float> vertices;
 

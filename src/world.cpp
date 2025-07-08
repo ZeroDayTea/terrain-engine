@@ -7,14 +7,15 @@
 World::World() {}
 
 void World::update(const glm::vec3& playerPos) {
-    glm::ivec2 playerChunkCoord(floor(playerPos.x / Chunk::CHUNK_WIDTH), floor(playerPos.z / Chunk::CHUNK_DEPTH));
+    glm::ivec3 playerChunkCoord(floor(playerPos.x / Chunk::CHUNK_WIDTH), floor(playerPos.y / Chunk::CHUNK_HEIGHT), floor(playerPos.z / Chunk::CHUNK_DEPTH));
 
     // check if chunks need to be unloaded
-    std::vector<glm::ivec2> unloadChunks;
+    std::vector<glm::ivec3> unloadChunks;
     for (auto const& [coord, chunk] : activeChunks) {
-        int dist_x = abs(coord.x - playerPos.x);
-        int dist_z = abs(coord.y - playerPos.y); // .y == 2nd element of ivec2
-        if (dist_x > viewDistance || dist_z > viewDistance) {
+        int dist_x = abs(coord.x - playerChunkCoord.x);
+        int dist_y = abs(coord.y - playerChunkCoord.y);
+        int dist_z = abs(coord.z - playerChunkCoord.z);
+        if (dist_x > viewDistance || dist_y > viewDistance || dist_z > viewDistance) {
             unloadChunks.push_back(coord);
         }
     }
@@ -26,13 +27,15 @@ void World::update(const glm::vec3& playerPos) {
 
     // all chunks within range of player's current chunk get loaded if not already
     for (int x = -viewDistance; x <= viewDistance; x++) {
-        for (int z = -viewDistance; z <= viewDistance; z++) {
-            glm::ivec2 chunkCoord = playerChunkCoord + glm::ivec2(x, z);
-            if (activeChunks.find(chunkCoord) == activeChunks.end()) {
-                glm::vec3 chunkWorldPos(chunkCoord.x * Chunk::CHUNK_WIDTH, 0.0f, chunkCoord.y * Chunk::CHUNK_DEPTH);
+        for (int y = -viewDistance; y <= viewDistance; y++) {
+            for (int z = -viewDistance; z <= viewDistance; z++) {
+                glm::ivec3 chunkCoord = playerChunkCoord + glm::ivec3(x, y, z);
+                if (activeChunks.find(chunkCoord) == activeChunks.end()) {
+                    glm::vec3 chunkWorldPos(chunkCoord.x * Chunk::CHUNK_WIDTH, chunkCoord.y * Chunk::CHUNK_HEIGHT, chunkCoord.z * Chunk::CHUNK_DEPTH);
 
-                activeChunks.emplace(chunkCoord, chunkWorldPos);
-            };
+                    activeChunks.emplace(chunkCoord, chunkWorldPos);
+                };
+            }
         }
     }
 }

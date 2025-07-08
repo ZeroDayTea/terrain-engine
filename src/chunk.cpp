@@ -3,8 +3,9 @@
 #include "glm/geometric.hpp"
 #include "marching_cubes.h"
 
-#define DB_PERLIN_IMPL
-#include "db_perlin.hpp"
+// #define DB_PERLIN_IMPL
+// #include "db_perlin.hpp"
+#include "snoise.h"
 
 #include <cmath>
 #include <iostream>
@@ -27,11 +28,11 @@ struct Point {
 glm::vec3 interpolate_vertices(const Point &p1, const Point &p2,
                                float isolevel, bool interpolation) {
   if (interpolation) {
-    // if (std::abs(p1.value - p2.value) < 0.00001f) {
-    //   return p1.pos;
-    // }
-    // float t = (isolevel - p1.value) / (p2.value - p1.value);
-    // return p1.pos + t * (p2.pos - p1.pos);
+    if (std::abs(p1.value - p2.value) < 0.00001f) {
+      return p1.pos;
+    }
+    float t = (isolevel - p1.value) / (p2.value - p1.value);
+    return p1.pos + t * (p2.pos - p1.pos);
   }
   return (1.0f / 2.0f) * (p1.pos + p2.pos);
 }
@@ -89,10 +90,10 @@ const int Chunk::cornersFromEdge[12][2] = {
     {3, 7}};
 
 const glm::vec3 Chunk::cornerOffsets[8] = {
-    glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f),
-    glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 1.0f),
-    glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f),
-    glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 1.0f, 1.0f)};
+    glm::vec3(0, 0, 0), glm::vec3(1, 0, 0),
+    glm::vec3(1, 0, 1), glm::vec3(0, 0, 1),
+    glm::vec3(0, 1, 0), glm::vec3(1, 1, 0),
+    glm::vec3(1, 1, 1), glm::vec3(0, 1, 1)};
 
 const float Chunk::cubeSize = 1.0f;
 
@@ -109,31 +110,41 @@ Chunk::~Chunk() {
 }
 
 void Chunk::generateMesh() {
-  for (int x = 0; x < CHUNK_DEPTH; ++x) {
-    for (int y = 0; y < CHUNK_WIDTH; ++y) {
-      for (int z = 0; z < CHUNK_HEIGHT; ++z) {
+  for (int x = 0; x <= CHUNK_DEPTH; ++x) {
+    for (int y = 0; y <= CHUNK_WIDTH; ++y) {
+      for (int z = 0; z <= CHUNK_HEIGHT; ++z) {
         glm::vec3 worldPos = this->chunkPos + glm::vec3(x, y, z);
+        glm::vec3 samplePos = glm::vec3(worldPos.x * 0.5f, worldPos.y * 0.25f, worldPos.z * 0.5f);
 
         // noise layer properties
-        int octaves = 6;
-        double noise = 0.0f;
-        double frequency = 0.0035f;
-        double amplitude = 1.0f;
-        double lacunarity = 2.0f;
-        double persistence = 0.5f;
+        int octaves = 4;
+        float noise = 0.0f;
+        float frequency = 0.0035f;
+        float amplitude = 1.0f;
+        float lacunarity = 2.0f;
+        float persistence = 0.5f;
 
         // octaves
         for (int j = 0; j < octaves; j++) {
-          noise = db::perlin(worldPos.x * frequency, worldPos.y * frequency,
-                             worldPos.z * frequency) *
+          noise += snoise(samplePos.x * frequency, samplePos.y * frequency,
+                             samplePos.z * frequency) *
                   amplitude;
           amplitude *= persistence;
           frequency *= lacunarity;
         }
 
-        double floorOffset = 1.0f;
-        double noiseWeight = 5.0f;
-        double density = (-worldPos.y + floorOffset) + noise * noiseWeight;
+        float floorOffset = 1.0f;
+        float noiseWeight = 5.0f;
+        float density = -(samplePos.y + floorOffset) + noise * noiseWeight;
+        if (density > 0.0f) {
+          density = std::pow(std::abs(density), 0.7f);
+        }
+
+        float hardFloor = 0.0f;
+        float hardFloorWeight = 0.0f;
+        if (worldPos.y < hardFloor) {
+          density += hardFloorWeight;
+        }
         this->points[x][y][z] = density;
       }
     }
@@ -148,11 +159,12 @@ void Chunk::generateMesh() {
 
         for (int i = 0; i < 8; i++) {
           glm::vec3 offset = cornerOffsets[i];
-          cubeCorners[i].pos = (cubePos + offset) * cubeSize;
+          cubeCorners[i].pos = (cubePos + offset);
           // std::cout << this->points[x][y][z] << std::endl;
-          cubeCorners[i].value =
-              this->points[static_cast<int>(x + offset.x)][static_cast<int>(
-                  y + offset.y)][static_cast<int>(z + offset.z)];
+          cubeCorners[i].value = this->points
+            [static_cast<int>(x + offset.x)]
+            [static_cast<int>(y + offset.y)]
+            [static_cast<int>(z + offset.z)];
         }
 
         unsigned int cubePattern = 0;
@@ -225,7 +237,7 @@ void Chunk::generateMesh() {
 
 void Chunk::render(unsigned int shaderProgram) {
   glm::mat4 model = glm::mat4(1.0f);
-  model = glm::translate(model, this->chunkPos);
+  model = glm::translate(model, glm::vec3(this->chunkPos.x, this->chunkPos.y, this->chunkPos.z));
   // float angle = 20.0f * i;
   // model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f,
   // 0.5f));
