@@ -31,7 +31,7 @@ void World::update(const glm::vec3& playerPos) {
 
     // all chunks within range of player's current chunk get loaded if not already
     for (int x = -viewDistance; x <= viewDistance; x++) {
-        for (int y = -viewDistance; y <= viewDistance; y++) {
+        for (int y = -4; y <= 4; y++) {
             for (int z = -viewDistance; z <= viewDistance; z++) {
                 glm::ivec3 chunkCoord = playerChunkCoord + glm::ivec3(x, y, z);
                 if (activeChunks.find(chunkCoord) == activeChunks.end()) {

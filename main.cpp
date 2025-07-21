@@ -42,7 +42,7 @@ int main() {
     if (!window) {
       return -1;
     }
-    
+
     unsigned int shaderProgram = generate_shader_program();
     unsigned int densityComputeProgram = generate_compute_program("../shaders/snoise.compute", "../shaders/density.compute");
     unsigned int marchComputeProgram = generate_compute_program("../shaders/marching_cubes.compute");
@@ -54,6 +54,7 @@ int main() {
       // sun-like lighting
       glm::vec3 lightColor(1.0f, 0.95f, 0.0f);
       glm::vec3 lightPos(24.0f, 50.0f, 24.0f);
+      float renderDistance = 500.0f;
       
       // render loop
       while (!glfwWindowShouldClose(window)) {
@@ -74,7 +75,7 @@ int main() {
         glm::mat4 view = camera.GetViewMatrix();
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, &view[0][0]);
 
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, renderDistance); // setting near-plane and far-plane
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &projection[0][0]);
 
         glUniform3fv(glGetUniformLocation(shaderProgram, "lightColor"), 1, &lightColor[0]);

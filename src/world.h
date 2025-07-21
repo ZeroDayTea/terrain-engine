@@ -30,7 +30,7 @@ private:
     // currently loaded chunks
     std::map<glm::ivec3, Chunk, Vec3Compare> activeChunks;
 
-    int viewDistance = 8;
+    int viewDistance = 16;
 
     unsigned int densityProgram;
     unsigned int marchingProgram;

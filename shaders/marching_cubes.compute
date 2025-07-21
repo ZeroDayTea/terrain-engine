@@ -24,12 +24,12 @@ layout(std430, binding = 4) coherent buffer CounterBuffer {
 uniform float isolevel;
 
 vec3 interpolate_vertex(vec3 p1, vec3 p2, float v1, float v2) {
-    // if (abs(v1 - v2) < 0.00001) {
-    //     return p1;
-    // }
-    // float t = (isolevel - v1) / (v2 - v1);
-    // return p1 + t * (p2 - p1);
-    return (1.0f / 2.0f) * (p1 + p2);
+    if (abs(v1 - v2) < 0.00001) {
+        return p1;
+    }
+    float t = (isolevel - v1) / (v2 - v1);
+    return p1 + t * (p2 - p1);
+    // return (1.0f / 2.0f) * (p1 + p2);
 }
 
 vec3 gradientNorm(ivec3 pos) {
