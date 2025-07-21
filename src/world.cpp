@@ -4,10 +4,14 @@
 #include <iostream>
 #include <vector>
 
-World::World() {}
+World::World(unsigned int densityProg, unsigned int marchingProg) : densityProgram(densityProg), marchingProgram(marchingProg) {}
 
 void World::update(const glm::vec3& playerPos) {
-    glm::ivec3 playerChunkCoord(floor(playerPos.x / Chunk::CHUNK_WIDTH), floor(playerPos.y / Chunk::CHUNK_HEIGHT), floor(playerPos.z / Chunk::CHUNK_DEPTH));
+    glm::ivec3 playerChunkCoord(
+        floor(playerPos.x / Chunk::CHUNK_WIDTH),
+        floor(playerPos.y / Chunk::CHUNK_HEIGHT),
+        floor(playerPos.z / Chunk::CHUNK_DEPTH)
+    );
 
     // check if chunks need to be unloaded
     std::vector<glm::ivec3> unloadChunks;
@@ -31,9 +35,13 @@ void World::update(const glm::vec3& playerPos) {
             for (int z = -viewDistance; z <= viewDistance; z++) {
                 glm::ivec3 chunkCoord = playerChunkCoord + glm::ivec3(x, y, z);
                 if (activeChunks.find(chunkCoord) == activeChunks.end()) {
-                    glm::vec3 chunkWorldPos(chunkCoord.x * Chunk::CHUNK_WIDTH, chunkCoord.y * Chunk::CHUNK_HEIGHT, chunkCoord.z * Chunk::CHUNK_DEPTH);
+                    glm::vec3 chunkWorldPos(
+                        chunkCoord.x * Chunk::CHUNK_WIDTH,
+                        chunkCoord.y * Chunk::CHUNK_HEIGHT,
+                        chunkCoord.z * Chunk::CHUNK_DEPTH
+                    );
 
-                    activeChunks.emplace(chunkCoord, chunkWorldPos);
+                    activeChunks.try_emplace(chunkCoord, chunkWorldPos, this->densityProgram, this->marchingProgram);
                 };
             }
         }

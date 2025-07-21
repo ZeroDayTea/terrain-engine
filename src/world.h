@@ -18,7 +18,7 @@ struct Vec3Compare {
 
 class World {
 public:
-    World();
+    World(unsigned int densityProgram, unsigned int marchingProgram);
 
     // check player position and load/unload chunks
     void update(const glm::vec3& playerPos);
@@ -30,5 +30,8 @@ private:
     // currently loaded chunks
     std::map<glm::ivec3, Chunk, Vec3Compare> activeChunks;
 
-    int viewDistance = 4;
+    int viewDistance = 8;
+
+    unsigned int densityProgram;
+    unsigned int marchingProgram;
 };

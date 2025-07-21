@@ -44,12 +44,15 @@ int main() {
     }
     
     unsigned int shaderProgram = generate_shader_program();
+    unsigned int densityComputeProgram = generate_compute_program("../shaders/snoise.compute", "../shaders/density.compute");
+    unsigned int marchComputeProgram = generate_compute_program("../shaders/marching_cubes.compute");
 
     // starting a new scope so chunk destructors get called
     {
-      World world;
+      World world(densityComputeProgram, marchComputeProgram);
 
-      glm::vec3 lightColor(1.0f, 1.0f, 1.0f);
+      // sun-like lighting
+      glm::vec3 lightColor(1.0f, 0.95f, 0.0f);
       glm::vec3 lightPos(24.0f, 50.0f, 24.0f);
       
       // render loop
@@ -62,7 +65,8 @@ int main() {
 
         world.update(camera.Position);
 
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        // sky blue color
+        glClearColor(0.5f, 0.7f, 0.9f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(shaderProgram);

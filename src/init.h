@@ -4,6 +4,7 @@ float lastX = SCREEN_WIDTH / 2.0f;
 float lastY = SCREEN_HEIGHT / 2.0f;
 
 bool firstMouse = true;
+bool cursorLocked = true;
 const float MOUSE_SENSITIVITY = 0.05f;
 
 Camera camera(glm::vec3(16.0f, 20.0f, 24.0f));
@@ -38,6 +39,19 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
 }
 
+/* void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) { */
+/*     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) { */
+/*         cursorLocked = !cursorLocked; */
+
+/*         if (cursorLocked) { */
+/*             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); */
+/*             firstMouse = true; // reset when re-locking */
+/*         } else { */
+/*             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); */
+/*         } */
+/*     } */
+/* } */
+
 GLFWwindow *glfw_initialization() {
   // glfw initialization
   glfwInit();
@@ -60,6 +74,7 @@ GLFWwindow *glfw_initialization() {
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
   glfwSetCursorPosCallback(window, mouse_callback);
   glfwSetScrollCallback(window, scroll_callback);
+  // glfwSetKeyCallback(window, key_callback);
   // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
   // loadl opengl function pointers
@@ -70,6 +85,11 @@ GLFWwindow *glfw_initialization() {
   }
 
   glEnable(GL_DEPTH_TEST);
+
+  // face culling for better performance
+  glEnable(GL_CULL_FACE);
+  glCullFace(GL_BACK);
+  glFrontFace(GL_CCW);
 
   return window;
 }
