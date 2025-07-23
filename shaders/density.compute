@@ -42,11 +42,11 @@ void main() {
         density = pow(abs(density), 0.7);
     }
 
-    float hardFloor = 0.0;
-    float hardFloorWeight = 0.0;
-    if (worldPos.y < hardFloor) {
-        density += hardFloorWeight;
-    }
+    // float hardFloor = 0.0;
+    // float hardFloorWeight = 0.0;
+    // if (worldPos.y < hardFloor) {
+    //     density += hardFloorWeight;
+    // }
 
     uint index = id.z * (CHUNK_WIDTH + 1) * (CHUNK_HEIGHT + 1) + id.y * (CHUNK_WIDTH + 1) + id.x;
     densities[index] = density;

@@ -14,24 +14,36 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-struct Vertex {
-  glm::vec4 pos;
-  glm::vec4 norm;
+namespace {
+  struct Vertex {
+    glm::vec4 pos;
+    glm::vec4 norm;
+  };
+
+  struct IndirectDraw {
+    GLuint v_count;
+    GLuint instanceCount;
+    GLuint first;
+    GLuint baseInstance;
+  };
 };
 
 // initialize chunk data and generate chunk mesh with compute shaders
-Chunk::Chunk(glm::vec3 chunkPosition, unsigned int densityShader, unsigned int marchingShader) : chunkPos(chunkPosition), VAO(0), vertexSSBO(0), vertexCount(0) {
+Chunk::Chunk(glm::vec3 chunkPosition, unsigned int densityShader, unsigned int marchingShader) : chunkPos(chunkPosition), VAO(0), vertexSSBO(0), indirectBuffer(0) {
   generateMeshGPU(densityShader, marchingShader);
-
-  if (vertexCount > 0) {
-    setupVAO();
-  }
 }
 
 // cleanup
 Chunk::~Chunk() {
-  glDeleteVertexArrays(1, &VAO);
-  glDeleteBuffers(1, &vertexSSBO);
+  if (VAO) {
+    glDeleteVertexArrays(1, &VAO);
+  }
+  if (vertexSSBO) {
+    glDeleteBuffers(1, &vertexSSBO);
+  }
+  if (indirectBuffer) {
+    glDeleteBuffers(1, &indirectBuffer);
+  }
 }
 
 /*
@@ -41,22 +53,18 @@ Chunk::~Chunk() {
 ** read vertex count back from gpu to cpu and keep vertex buffer for rendering
 */
 void Chunk::generateMeshGPU(unsigned int densityShader, unsigned int marchingShader) {
-    // buffer sizes
-    const int numPoints = (CHUNK_WIDTH + 1) * (CHUNK_HEIGHT + 1) * (CHUNK_DEPTH + 1);
-    const int maxVertices = CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_DEPTH * 5 * 3; // max 5 triangles per chunk with 3 vertices each
-
     // temporary OpenGL buffer objects
     unsigned int densitySSBO, triTableSSBO, edgeTableSSBO, counterSSBO;
 
     // density field storage
     glGenBuffers(1, &densitySSBO);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, densitySSBO);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, numPoints * sizeof(float), NULL, GL_STATIC_DRAW);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, NUM_POINTS * sizeof(float), NULL, GL_STATIC_DRAW);
 
     // persistent vertext output buffer
     glGenBuffers(1, &vertexSSBO);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, vertexSSBO);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, maxVertices * sizeof(Vertex), NULL, GL_STATIC_DRAW);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, MAX_VERTICES * sizeof(Vertex), NULL, GL_STATIC_DRAW);
 
     // marching cubes triangle lookup table
     glGenBuffers(1, &triTableSSBO);
@@ -95,9 +103,18 @@ void Chunk::generateMeshGPU(unsigned int densityShader, unsigned int marchingSha
     glDispatchCompute(CHUNK_WIDTH / 8, CHUNK_HEIGHT / 8, CHUNK_DEPTH / 8);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_BUFFER_UPDATE_BARRIER_BIT);
 
-    // read vertex count back to cpu
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, counterSSBO);
-    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(unsigned int), &vertexCount);
+    // indirect draw buffer to prevent cpu readback
+    glGenBuffers(1, &indirectBuffer);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectBuffer);
+    IndirectDraw cmd = {0, 1, 0, 0};
+    glBufferData(GL_DRAW_INDIRECT_BUFFER, sizeof(cmd), &cmd, GL_DYNAMIC_DRAW);
+
+    // keep vertex count in gpu for rendering (yay no readback)
+    glBindBuffer(GL_COPY_READ_BUFFER, counterSSBO);
+    glBindBuffer(GL_COPY_WRITE_BUFFER, indirectBuffer);
+    glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(GLuint));
+
+    setupVAO();
 
     // delete temporary buffers (keeping vertexSSBO for rendering)
     glDeleteBuffers(1, &densitySSBO);
@@ -125,7 +142,6 @@ void Chunk::setupVAO() {
 }
 
 void Chunk::render(unsigned int shaderProgram) {
-  if (vertexCount == 0) return;
   glm::mat4 model = glm::mat4(1.0f);
   model = glm::translate(model, chunkPos);
   // float angle = 20.0f * i;
@@ -135,8 +151,10 @@ void Chunk::render(unsigned int shaderProgram) {
                      &model[0][0]);
 
   glBindVertexArray(this->VAO);
+  glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectBuffer);
 
-  glDrawArrays(GL_TRIANGLES, 0, vertexCount);
+  glDrawArraysIndirect(GL_TRIANGLES, 0);
 
   glBindVertexArray(0);
+  glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 }
