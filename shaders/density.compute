@@ -1,14 +1,22 @@
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
-const int CHUNK_WIDTH = 16;
-const int CHUNK_HEIGHT = 16;
-const int CHUNK_DEPTH = 16;
+const int CHUNK_WIDTH = 32;
+const int CHUNK_HEIGHT = 32;
+const int CHUNK_DEPTH = 32;
 
 layout(std430, binding = 0) buffer DensityBuffer {
     float densities[];
 };
 
 uniform vec3 chunkWorldPos;
+
+const int OCTAVES = 4;
+const float BASE_FREQUENCY = 0.0035;
+const float LACUNARITY = 2.0;
+const float PERSISTENCE = 0.5;
+const float FLOOR_OFFSET = 1.0;
+const float NOISE_WEIGHT = 5.0;
+const float DENSITY_EXP = 0.7;
 
 void main() {
     ivec3 id = ivec3(gl_GlobalInvocationID);
@@ -20,26 +28,20 @@ void main() {
     vec3 worldPos = chunkWorldPos + vec3(id);
     vec3 samplePos = worldPos * vec3(0.5, 0.25, 0.5);
 
-    int octaves = 4;
-    float noise = 0.0f;
-    float frequency = 0.0035;
+    float frequency = BASE_FREQUENCY;
     float amplitude = 1.0;
-    float lacunarity = 2.0;
-    float persistence = 0.5;
+    float noise = 0.0;
 
-
-    for (int i = 0; i < octaves; i++) {
+    for (int i = 0; i < OCTAVES; i++) {
         noise += snoise(samplePos * frequency) * amplitude;
-        amplitude *= persistence;
-        frequency *= lacunarity;
+        amplitude *= PERSISTENCE;
+        frequency *= LACUNARITY;
     }
 
-    float floorOffset = 1.0f;
-    float noiseWeight = 5.0f;
-    float density = -(samplePos.y + floorOffset) + noise * noiseWeight;
+    float density = -(samplePos.y + FLOOR_OFFSET) + noise * NOISE_WEIGHT;
 
     if (density > 0.0) {
-        density = pow(abs(density), 0.7);
+        density = pow(density, DENSITY_EXP);
     }
 
     // float hardFloor = 0.0;

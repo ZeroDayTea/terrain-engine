@@ -2,9 +2,9 @@
 
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
-const int CHUNK_WIDTH = 16;
-const int CHUNK_HEIGHT = 16;
-const int CHUNK_DEPTH = 16;
+const int CHUNK_WIDTH = 32;
+const int CHUNK_HEIGHT = 32;
+const int CHUNK_DEPTH = 32;
 
 struct Vertex {
     vec4 pos;
