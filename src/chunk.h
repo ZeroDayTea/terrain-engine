@@ -10,17 +10,8 @@ public:
   static constexpr int CHUNK_HEIGHT = 64;
   static constexpr int CHUNK_DEPTH = 64;
 
-  static constexpr int COMPUTE_GROUP_SIZE = 8;
-  static constexpr int BATCH_SIZE_X = 2;
-  static constexpr int BATCH_SIZE_Y = 2;
-  static constexpr int BATCH_SIZE_Z = 2;
-  static constexpr int BATCH_SIZE = BATCH_SIZE_X * BATCH_SIZE_Y * BATCH_SIZE_Z;
-
   static constexpr int NUM_POINTS = (CHUNK_WIDTH + 1) * (CHUNK_HEIGHT + 1) * (CHUNK_DEPTH + 1);
   static constexpr int MAX_VERTICES = CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_DEPTH * 5 * 3; // max 5 triangles per chunk with 3 vertices each
-  static constexpr int BATCH_WIDTH = CHUNK_WIDTH * BATCH_SIZE_X;
-  static constexpr int BATCH_HEIGHT = CHUNK_HEIGHT * BATCH_SIZE_Y;
-  static constexpr int BATCH_DEPTH = CHUNK_DEPTH * BATCH_SIZE_Z;
 
   Chunk(glm::vec3 chunkPosition, unsigned int densityShader, unsigned int mcCountShader, unsigned int mcEmitShader);
 
