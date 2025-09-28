@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 
-World::World(unsigned int densityProg, unsigned int marchingProg) : densityProgram(densityProg), marchingProgram(marchingProg) {}
+World::World(unsigned int densityProg, unsigned int mcCountProg, unsigned int mcEmitProg) : densityProgram(densityProg), mcCountProgram(mcCountProg), mcEmitProgram(mcEmitProg) {}
 
 void World::update(const glm::vec3& playerPos) {
     glm::ivec3 playerChunkCoord(
@@ -41,7 +41,7 @@ void World::update(const glm::vec3& playerPos) {
                         chunkCoord.z * Chunk::CHUNK_DEPTH
                     );
 
-                    activeChunks.try_emplace(chunkCoord, chunkWorldPos, this->densityProgram, this->marchingProgram);
+                    activeChunks.try_emplace(chunkCoord, chunkWorldPos, this->densityProgram, this->mcCountProgram, this->mcEmitProgram);
                 };
             }
         }

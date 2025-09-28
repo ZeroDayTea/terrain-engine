@@ -6,9 +6,9 @@
 class Chunk {
 public:
   // chunk size constants
-  static constexpr int CHUNK_WIDTH = 32;
-  static constexpr int CHUNK_HEIGHT = 32;
-  static constexpr int CHUNK_DEPTH = 32;
+  static constexpr int CHUNK_WIDTH = 64;
+  static constexpr int CHUNK_HEIGHT = 64;
+  static constexpr int CHUNK_DEPTH = 64;
 
   static constexpr int COMPUTE_GROUP_SIZE = 8;
   static constexpr int BATCH_SIZE_X = 2;
@@ -22,7 +22,7 @@ public:
   static constexpr int BATCH_HEIGHT = CHUNK_HEIGHT * BATCH_SIZE_Y;
   static constexpr int BATCH_DEPTH = CHUNK_DEPTH * BATCH_SIZE_Z;
 
-  Chunk(glm::vec3 chunkPosition, unsigned int densityShader, unsigned int marchingShader);
+  Chunk(glm::vec3 chunkPosition, unsigned int densityShader, unsigned int mcCountShader, unsigned int mcEmitShader);
 
   ~Chunk();
 
@@ -41,7 +41,10 @@ private:
   unsigned int vertexSSBO; // vertex output buffer
   unsigned int indirectBuffer;
 
-  void generateMeshGPU(unsigned int densityShader, unsigned int marchingShader);
+  // offsets after marching cubes first pass
+  unsigned int offsetsSSBO;
+
+  void generateMeshGPU(unsigned int densityShader, unsigned int mcCountShader, unsigned int mcEmitShader);
   void checkVertexCount();
 
   void setupVAO();

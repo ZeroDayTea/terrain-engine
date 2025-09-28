@@ -1,0 +1,129 @@
+#version 430 core
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+const int CHUNK_WIDTH = 64;
+const int CHUNK_HEIGHT = 64;
+const int CHUNK_DEPTH = 64;
+
+layout(std430, binding = 0) readonly buffer DensityBuffer { float densities[]; };
+layout(std430, binding = 1) readonly buffer TriangleTable { int triTable[]; };
+layout(std430, binding = 2) readonly buffer EdgeTable { int edgeTable[]; };
+
+// global vertex counter (coherent so update across groups)
+layout(std430, binding = 4) coherent buffer CounterBuffer { uint vertex_total; };
+
+// per-voxel vertex offsets
+layout(std430, binding = 5) writeonly buffer OffsetBuffer { uint offsets[]; };
+
+uniform float isolevel;
+
+uint densityIndex(ivec3 p) {
+    return uint(p.z) * uint(CHUNK_WIDTH + 1) * uint(CHUNK_HEIGHT + 1)
+        + uint(p.y) * uint(CHUNK_WIDTH + 1)
+        + uint(p.x);
+}
+
+uint voxelIndex(ivec3 p) {
+    return uint(p.z) * uint(CHUNK_WIDTH) * uint(CHUNK_HEIGHT)
+        + uint(p.y) * uint(CHUNK_WIDTH)
+        + uint(p.x);
+}
+
+const uint wg_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z;
+// shared uint s_vals[512]; // 8*8*8 entries per workgroup
+shared uint s_incl[wg_size]; // exclusive prefix (vertices)
+shared uint s_groupSum; // total vertices for workgroup
+shared uint s_groupBase; // global base for workgroup
+
+void main() {
+    ivec3 gid = ivec3(gl_GlobalInvocationID);
+    // ivec3 lid = ivec3(gl_LocalInvocationID);
+    // ivec3 lsz = ivec3(gl_WorkGroupSize);
+    // ivec3 gsz = ivec3(gl_NumWorkGroups);
+
+    if (gid.x >= CHUNK_WIDTH || gid.y >= CHUNK_HEIGHT || gid.z >= CHUNK_DEPTH) {
+        return;
+    }
+
+    // cube corners
+    vec3 cornerOffsets[8] = vec3[8](
+        vec3(0,0,0), vec3(1,0,0), vec3(1,0,1), vec3(0,0,1),
+        vec3(0,1,0), vec3(1,1,0), vec3(1,1,1), vec3(0,1,1)
+    );
+
+    float v[8];
+    for (int i = 0; i < 8; ++i) {
+        v[i] = densities[densityIndex(gid + ivec3(cornerOffsets[i]))];
+    }
+
+    int cubeIndex = 0;
+    // for (int i = 0; i < 8; ++i) {
+    //     if (v[i] > isolevel) cubeIndex |= pow(2, i);
+    // }
+    if (v[0] > isolevel) cubeIndex |= 1;
+    if (v[1] > isolevel) cubeIndex |= 2;
+    if (v[2] > isolevel) cubeIndex |= 4;
+    if (v[3] > isolevel) cubeIndex |= 8;
+    if (v[4] > isolevel) cubeIndex |= 16;
+    if (v[5] > isolevel) cubeIndex |= 32;
+    if (v[6] > isolevel) cubeIndex |= 64;
+    if (v[7] > isolevel) cubeIndex |= 128;
+
+    int mask = edgeTable[cubeIndex];
+    int base = cubeIndex * 16;
+    int triCount = 0;
+
+    if (mask != 0) {
+        for (int i = 0; triTable[base + i] != -1; i += 3) {
+            triCount++;
+        }
+    }
+
+    // num vertices in voxel
+    uint vtxCount = uint(triCount * 3);
+
+    // uint lindex = uint(lid.z) * uint(lsz.x*lsz.y) + uint(lid.y) * uint(lsz.x) + uint(lid.x);
+    uint lindex = gl_LocalInvocationIndex;
+    // shared uint s_incl[gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z];
+    s_incl[lindex] = vtxCount;
+
+    // all counts must be written
+    barrier();
+
+    // s_excl[lindex] = 0u;
+    // s_incl[lindex] = s_vals[lindex];
+    // barrier();
+
+    // inclusive scan
+    // uint sum = s_counts[lindex];
+    for (uint offset = 1u; offset < wg_size; offset <<= 1u) {
+        uint n = 0u;
+        if (lindex >= offset) {
+            n = s_incl[lindex - offset];
+        }
+        barrier();
+        s_incl[lindex] += n;
+        barrier();
+        // sum = s_counts[lindex];
+    }
+
+    // s_counts holds inclusive, build exclusive
+    // uint exclusive = sum - vtxCount;
+    // s_excl[lindex] = exclusive;
+
+    // barrier();
+
+    // shared uint s_groupSum;
+    // shared uint s_groupBase;
+    if (lindex == wg_size - 1u) {
+        s_groupSum = s_incl[lindex];
+        s_groupBase = atomicAdd(vertex_total, s_groupSum);
+    }
+    barrier();
+
+    uint exclusive = s_incl[lindex] - vtxCount;
+
+    // global offset for this voxel
+    uint gOffset = s_groupBase + exclusive;
+    offsets[voxelIndex(gid)] = gOffset;
+}

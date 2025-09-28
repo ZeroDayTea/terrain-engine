@@ -14,6 +14,7 @@
 #include "camera.h"
 #include "init.h"
 #include "init_shaders.h"
+#include "src/init_shaders.h"
 #include "world.h"
 
 float deltaTime = 0.0f;
@@ -44,12 +45,14 @@ int main() {
     }
 
     unsigned int shaderProgram = generate_shader_program();
-    unsigned int densityComputeProgram = generate_compute_program("../shaders/snoise.compute", "../shaders/density.compute");
-    unsigned int marchComputeProgram = generate_compute_program("../shaders/marching_cubes.compute");
+    unsigned int densityComputeProgram = generate_compute_program("../shaders/snoise.comp", "../shaders/density.comp");
+    unsigned int mcCountComputeProgram = generate_compute_program("../shaders/mc_count.comp");
+    unsigned int mcEmitComputeProgram = generate_compute_program("../shaders/mc_emit.comp");
+    auto U = get_locations(shaderProgram);
 
     // starting a new scope so chunk destructors get called
     {
-      World world(densityComputeProgram, marchComputeProgram);
+      World world(densityComputeProgram, mcCountComputeProgram, mcEmitComputeProgram);
 
       // sun-like lighting
       glm::vec3 lightColor(1.0f, 0.95f, 0.0f);
@@ -73,14 +76,14 @@ int main() {
         glUseProgram(shaderProgram);
 
         glm::mat4 view = camera.GetViewMatrix();
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, &view[0][0]);
+        glUniformMatrix4fv(U.uView, 1, GL_FALSE, &view[0][0]);
 
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, renderDistance); // setting near-plane and far-plane
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &projection[0][0]);
+        glUniformMatrix4fv(U.uProj, 1, GL_FALSE, &projection[0][0]);
 
-        glUniform3fv(glGetUniformLocation(shaderProgram, "lightColor"), 1, &lightColor[0]);
-        glUniform3fv(glGetUniformLocation(shaderProgram, "lightPos"), 1, &lightPos[0]);
-        glUniform3fv(glGetUniformLocation(shaderProgram, "viewPos"), 1, &camera.Position[0]);
+        glUniform3fv(U.uLightColor, 1, &lightColor[0]);
+        glUniform3fv(U.uLightPos, 1, &lightPos[0]);
+        glUniform3fv(U.uViewPos, 1, &camera.Position[0]);
 
         world.render(shaderProgram);
 

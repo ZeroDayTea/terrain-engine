@@ -1,5 +1,21 @@
 #pragma once
 
+struct GLUniforms {
+  GLint uModel, uView, uProj, uLightColor, uLightPos, uViewPos;
+};
+
+inline GLUniforms get_locations(GLuint prog) {
+  GLUniforms U{};
+  U.uModel = glGetUniformLocation(prog, "model");
+  U.uView = glGetUniformLocation(prog, "view");
+  U.uProj = glGetUniformLocation(prog, "projection");
+  U.uLightColor = glGetUniformLocation(prog, "lightColor");
+  U.uLightPos = glGetUniformLocation(prog, "lightPos");
+  U.uViewPos = glGetUniformLocation(prog, "viewPos");
+
+  return U;
+}
+
 std::string readShaderSource(const std::string& path) {
     std::ifstream shaderFile;
     shaderFile.open(path);

@@ -1,8 +1,8 @@
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
-const int CHUNK_WIDTH = 16;
-const int CHUNK_HEIGHT = 16;
-const int CHUNK_DEPTH = 16;
+const int CHUNK_WIDTH = 64;
+const int CHUNK_HEIGHT = 64;
+const int CHUNK_DEPTH = 64;
 
 layout(std430, binding = 0) buffer DensityBuffer {
     float densities[];
