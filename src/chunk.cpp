@@ -103,7 +103,7 @@ void Chunk::generateMeshGPU(unsigned int densityShader, unsigned int mcCountShad
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, offsetsSSBO);
 
     glDispatchCompute(CHUNK_WIDTH / 8, CHUNK_HEIGHT / 8, CHUNK_DEPTH / 8);
-    glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
     GLuint totalVertices = 0;
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, counterSSBO);
@@ -159,6 +159,14 @@ void Chunk::setupVAO() {
     glEnableVertexAttribArray(1);
 
     glBindVertexArray(0);
+}
+
+void Chunk::renderRaw() {
+  glBindVertexArray(this->VAO);
+  glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectBuffer);
+  glDrawArraysIndirect(GL_TRIANGLES, 0);
+  glBindVertexArray(0);
+  glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 }
 
 void Chunk::render(unsigned int shaderProgram) {

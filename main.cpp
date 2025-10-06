@@ -16,6 +16,7 @@
 #include "init_shaders.h"
 #include "src/init_shaders.h"
 #include "world.h"
+#include "frustum.h"
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -85,7 +86,10 @@ int main() {
         glUniform3fv(U.uLightPos, 1, &lightPos[0]);
         glUniform3fv(U.uViewPos, 1, &camera.Position[0]);
 
-        world.render(shaderProgram);
+        glm::mat4 VP = projection * view;
+        Frustum fr = make_frustum(VP);
+
+        world.render(shaderProgram, fr, U.uModel);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

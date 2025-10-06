@@ -1,8 +1,12 @@
 #include "world.h"
 #include "chunk.h"
+#include "frustum.h"
 #include <cmath>
 #include <iostream>
 #include <vector>
+
+#include <glad/glad.h>
+#include <glm/gtc/matrix_transform.hpp>
 
 World::World(unsigned int densityProg, unsigned int mcCountProg, unsigned int mcEmitProg) : densityProgram(densityProg), mcCountProgram(mcCountProg), mcEmitProgram(mcEmitProg) {}
 
@@ -48,8 +52,14 @@ void World::update(const glm::vec3& playerPos) {
     }
 }
 
-void World::render(unsigned int shaderProgram) {
+void World::render(unsigned int shaderProgram, const Frustum& frustum, GLint uModelLoc) {
     for (auto& [coord, chunk] : activeChunks) {
-        chunk.render(shaderProgram);
+        glm::vec3 bmin = chunk.chunkPos;
+        glm::vec3 bmax = chunk.chunkPos + glm::vec3(Chunk::CHUNK_WIDTH, Chunk::CHUNK_HEIGHT, Chunk::CHUNK_DEPTH);
+        if (!aabb_in_frustum(bmin, bmax, frustum)) continue;
+
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), chunk.chunkPos);
+        glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, &model[0][0]);
+        chunk.renderRaw();
     }
 }

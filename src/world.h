@@ -2,7 +2,9 @@
 
 #include "chunk.h"
 #include <map>
+#include <glad/glad.h>
 #include <glm/glm.hpp>
+#include "frustum.h"
 
 struct Vec3Compare {
     bool operator()(const glm::ivec3& a, const glm::ivec3& b) const {
@@ -24,7 +26,7 @@ public:
     void update(const glm::vec3& playerPos);
 
     // render all loaded chunks
-    void render(unsigned int shaderProgram);
+    void render(unsigned int shaderProgram, const Frustum& frustum, GLint uModelLoc);
 
 private:
     // currently loaded chunks

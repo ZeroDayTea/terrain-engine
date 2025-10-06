@@ -23,6 +23,8 @@ public:
   Chunk(Chunk&&) = delete;
   Chunk& operator=(Chunk&&) = delete;
 
+  void renderRaw();
+
   void render(unsigned int shaderProgram);
 
   glm::vec3 chunkPos;
