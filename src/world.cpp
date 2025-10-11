@@ -1,6 +1,8 @@
 #include "world.h"
 #include "chunk.h"
 #include "frustum.h"
+#include "job_queues.h"
+#include "worker_types.h"
 #include <cmath>
 #include <iostream>
 #include <vector>
@@ -8,7 +10,7 @@
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 
-World::World(unsigned int densityProg, unsigned int mcCountProg, unsigned int mcEmitProg) : densityProgram(densityProg), mcCountProgram(mcCountProg), mcEmitProgram(mcEmitProg) {}
+World::World(unsigned int densityProg, unsigned int mcCountProg, unsigned int mcEmitProg, BlockingQueue<GenJob>* jobIn, SPSCQueue<GenResult>* jobOut) : densityProgram(densityProg), mcCountProgram(mcCountProg), mcEmitProgram(mcEmitProg), genIn(jobIn), genOut(jobOut) {}
 
 void World::update(const glm::vec3& playerPos) {
     glm::ivec3 playerChunkCoord(
@@ -31,6 +33,7 @@ void World::update(const glm::vec3& playerPos) {
     // call destructor of unloading chunks
     for (const auto& coord : unloadChunks) {
         activeChunks.erase(coord);
+        requestedKeys.erase(key64(coord.x, coord.y, coord.z));
     }
 
     // all chunks within range of player's current chunk get loaded if not already
@@ -38,17 +41,76 @@ void World::update(const glm::vec3& playerPos) {
         for (int y = -4; y <= 4; y++) {
             for (int z = -viewDistance; z <= viewDistance; z++) {
                 glm::ivec3 chunkCoord = playerChunkCoord + glm::ivec3(x, y, z);
-                if (activeChunks.find(chunkCoord) == activeChunks.end()) {
-                    glm::vec3 chunkWorldPos(
-                        chunkCoord.x * Chunk::CHUNK_WIDTH,
-                        chunkCoord.y * Chunk::CHUNK_HEIGHT,
-                        chunkCoord.z * Chunk::CHUNK_DEPTH
-                    );
+                if (activeChunks.find(chunkCoord) != activeChunks.end()) continue;
+                long long k = key64(chunkCoord.x, chunkCoord.y, chunkCoord.z);
+                if (requestedKeys.count(k)) continue;
 
-                    activeChunks.try_emplace(chunkCoord, chunkWorldPos, this->densityProgram, this->mcCountProgram, this->mcEmitProgram);
-                };
+                glm::vec3 chunkWorldPos(
+                    chunkCoord.x * Chunk::CHUNK_WIDTH,
+                    chunkCoord.y * Chunk::CHUNK_HEIGHT,
+                    chunkCoord.z * Chunk::CHUNK_DEPTH
+                );
+
+                // activeChunks.try_emplace(chunkCoord, chunkWorldPos, this->densityProgram, this->mcCountProgram, this->mcEmitProgram);
+                genIn->push(GenJob{ {chunkCoord.x, chunkCoord.y, chunkCoord.z}, chunkWorldPos });
+                requestedKeys.insert(k);
             }
         }
+    }
+}
+
+void World::collectFinished() {
+    GenResult res;
+    while (genOut->try_pop(res)) {
+        // wait/poll once
+        GLenum r = glClientWaitSync(res.fence, 0, 0);
+        if (r != GL_ALREADY_SIGNALED && r != GL_CONDITION_SATISFIED) {
+            // spin
+            glClientWaitSync(res.fence, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000);
+        }
+        glDeleteSync(res.fence);
+
+        GLuint totalVertices = res.totalVertices;
+        if (totalVertices == 0) {
+            glDeleteBuffers(1,&res.vertexSSBO);
+            glDeleteBuffers(1,&res.indirect);
+            glDeleteBuffers(1,&res.counterSSBO);
+            glDeleteBuffers(1,&res.densitySSBO);
+            glDeleteBuffers(1,&res.offsetsSSBO);
+            continue;
+        }
+
+        // buffer with known count from second pass
+        struct IndirectDraw { GLuint count, instanceCount, first, baseInstance; };
+        IndirectDraw cmd{ totalVertices, 1u, 0u, 0u };
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, res.indirect);
+        glBufferData(GL_DRAW_INDIRECT_BUFFER, sizeof(cmd), &cmd, GL_STATIC_DRAW);
+
+        // create VAO
+        GLuint vao=0;
+        glGenVertexArrays(1, &vao);
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, res.vertexSSBO);
+
+        const GLsizei stride = 8 * sizeof(float);
+
+        // location 0: aPos
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+
+        // location 1: aNormal
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(4 * sizeof(float)));
+
+        glBindVertexArray(0);
+
+        glm::ivec3 cc(res.key.x,res.key.y,res.key.z);
+        auto [it,inserted] = activeChunks.try_emplace(cc, res.worldPos, 0,0,0);
+        it->second.adoptPrebuilt(vao, res.vertexSSBO, res.indirect);
+
+        glDeleteBuffers(1,&res.counterSSBO);
+        glDeleteBuffers(1,&res.densitySSBO);
+        glDeleteBuffers(1,&res.offsetsSSBO);
     }
 }
 

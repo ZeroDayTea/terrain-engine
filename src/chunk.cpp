@@ -161,6 +161,22 @@ void Chunk::setupVAO() {
     glBindVertexArray(0);
 }
 
+void Chunk::adoptPrebuilt(GLuint vao_, GLuint vbo_, GLuint indirect_) {
+  if (VAO) {
+    glDeleteVertexArrays(1, &VAO);
+  }
+  if (vertexSSBO) {
+    glDeleteBuffers(1, &vertexSSBO);
+  }
+  if (indirectBuffer) {
+    glDeleteBuffers(1, &indirectBuffer);
+  }
+
+  VAO = vao_;
+  vertexSSBO = vbo_;
+  indirectBuffer = indirect_;
+}
+
 void Chunk::renderRaw() {
   glBindVertexArray(this->VAO);
   glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectBuffer);

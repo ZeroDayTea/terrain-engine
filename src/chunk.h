@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glad/glad.h>
 #include <vector>
 
 class Chunk {
@@ -24,6 +25,8 @@ public:
   Chunk& operator=(Chunk&&) = delete;
 
   void renderRaw();
+
+  void adoptPrebuilt(GLuint vao, GLuint vertexSSBO, GLuint indirectBuffer);
 
   void render(unsigned int shaderProgram);
 

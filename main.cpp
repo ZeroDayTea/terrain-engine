@@ -14,9 +14,17 @@
 #include "camera.h"
 #include "init.h"
 #include "init_shaders.h"
-#include "src/init_shaders.h"
+#include "src/chunk_worker.h"
+#include "src/job_queues.h"
+#include "src/marching_cubes.h"
+#include "src/worker_types.h"
 #include "world.h"
 #include "frustum.h"
+#include "gl_shared.h"
+#include "job_queues.h"
+#include "worker_types.h"
+#include "chunk_worker.h"
+#include "marching_cubes.h"
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -42,8 +50,24 @@ void processInput(GLFWwindow *window) {
 int main() {
     GLFWwindow* window = glfw_initialization();
     if (!window) {
-      return -1;
+        std::cerr << "Failed to create main window\n";
+        return -1;
     }
+    GLFWwindow* worker_window = create_shared_context(window);
+    if (!worker_window) {
+        std::cerr << "Failed to create shared worker context window\n";
+        return -1;
+    }
+
+    // immutable tri SSBO/edge SSBO built once
+    GLuint g_triSSBO = 0, g_edgeSSBO = 0;
+    glGenBuffers(1, &g_triSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, g_triSSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(triTable), &triTable[0], GL_STATIC_DRAW);
+
+    glGenBuffers(1, &g_edgeSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, g_edgeSSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(edgeTable), &edgeTable[0], GL_STATIC_DRAW);
 
     unsigned int shaderProgram = generate_shader_program();
     unsigned int densityComputeProgram = generate_compute_program("../shaders/snoise.comp", "../shaders/density.comp");
@@ -51,9 +75,14 @@ int main() {
     unsigned int mcEmitComputeProgram = generate_compute_program("../shaders/mc_emit.comp");
     auto U = get_locations(shaderProgram);
 
+    BlockingQueue<GenJob> genIn;
+    SPSCQueue<GenResult> genOut;
+    ChunkWorker worker(worker_window, &genIn, &genOut, densityComputeProgram, mcCountComputeProgram, mcEmitComputeProgram, g_triSSBO, g_edgeSSBO);
+    worker.start();
+
     // starting a new scope so chunk destructors get called
     {
-      World world(densityComputeProgram, mcCountComputeProgram, mcEmitComputeProgram);
+      World world(densityComputeProgram, mcCountComputeProgram, mcEmitComputeProgram, &genIn, &genOut);
 
       // sun-like lighting
       glm::vec3 lightColor(1.0f, 0.95f, 0.0f);
@@ -69,6 +98,7 @@ int main() {
         processInput(window);
 
         world.update(camera.Position);
+        world.collectFinished();
 
         // sky blue color
         glClearColor(0.5f, 0.7f, 0.9f, 1.0f);
@@ -96,6 +126,7 @@ int main() {
       }
     }
 
+    worker.shutdown();
     glDeleteProgram(shaderProgram);
 
     glfwTerminate();
