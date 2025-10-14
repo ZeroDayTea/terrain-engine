@@ -107,7 +107,7 @@ private:
                 continue;
             }
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, res.vertexSSBO);
-            glBufferData(GL_SHADER_STORAGE_BUFFER, totalVertices * 8u * sizeof(float), nullptr, GL_STATIC_DRAW);
+            glBufferData(GL_SHADER_STORAGE_BUFFER, totalVertices * 2u * sizeof(GLuint), nullptr, GL_STATIC_DRAW);
 
             // third pass: emit (packed uvec3 vertices)
             glUseProgram(mcEmitProg);

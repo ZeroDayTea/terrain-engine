@@ -10,13 +10,26 @@ layout(std430, binding = 0) buffer DensityBuffer {
 
 uniform vec3 chunkWorldPos;
 
-const int OCTAVES = 4;
-const float BASE_FREQUENCY = 0.0035;
-const float LACUNARITY = 2.0;
-const float PERSISTENCE = 0.5;
-const float FLOOR_OFFSET = 1.0;
-const float NOISE_WEIGHT = 5.0;
+const int terrainMode = 0; // 0 = 3d noise, 1 = 2d noise heighmap
+
+// shared params
 const float DENSITY_EXP = 0.7;
+const float FLOOR_OFFSET = 1.0;
+
+// 3d params
+const int OCTAVES_3D = 4;
+const float BASE_FREQUENCY_3D = 0.0035;
+const float LACUNARITY_3D = 2.0;
+const float PERSISTENCE_3D = 0.5;
+const float NOISE_WEIGHT_3D = 5.0;
+
+// 2d params
+const int OCTAVES_2D = 4;
+const float BASE_FREQUENCY_2D = 0.0035;
+const float LACUNARITY_2D = 2.0;
+const float PERSISTENCE_2D = 0.5;
+const float NOISE_WEIGHT_2D = 5.0;
+
 
 void main() {
     ivec3 id = ivec3(gl_GlobalInvocationID);
@@ -28,17 +41,17 @@ void main() {
     vec3 worldPos = chunkWorldPos + vec3(id);
     vec3 samplePos = worldPos * vec3(0.5, 0.25, 0.5);
 
-    float frequency = BASE_FREQUENCY;
+    float frequency = BASE_FREQUENCY_3D;
     float amplitude = 1.0;
     float noise = 0.0;
 
-    for (int i = 0; i < OCTAVES; i++) {
+    for (int i = 0; i < OCTAVES_3D; i++) {
         noise += snoise(samplePos * frequency) * amplitude;
-        amplitude *= PERSISTENCE;
-        frequency *= LACUNARITY;
+        amplitude *= PERSISTENCE_3D;
+        frequency *= LACUNARITY_3D;
     }
 
-    float density = -(samplePos.y + FLOOR_OFFSET) + noise * NOISE_WEIGHT;
+    float density = -(samplePos.y + FLOOR_OFFSET) + pow(2, noise) * NOISE_WEIGHT_3D;
 
     if (density > 0.0) {
         density = pow(density, DENSITY_EXP);

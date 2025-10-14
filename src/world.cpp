@@ -92,15 +92,15 @@ void World::collectFinished() {
         glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, res.vertexSSBO);
 
-        const GLsizei stride = 8 * sizeof(float);
+        const GLsizei stride = 2 * sizeof(GLuint);
 
         // location 0: aPos
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+        glVertexAttribIPointer(0, 1, GL_UNSIGNED_INT, stride, (void*)0);
 
         // location 1: aNormal
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(4 * sizeof(float)));
+        glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, stride, (void*)(sizeof(GLuint)));
 
         glBindVertexArray(0);
 

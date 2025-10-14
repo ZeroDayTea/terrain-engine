@@ -87,7 +87,7 @@ int main() {
       // sun-like lighting
       glm::vec3 lightColor(1.0f, 0.95f, 0.0f);
       glm::vec3 lightPos(24.0f, 50.0f, 24.0f);
-      float renderDistance = 500.0f;
+      float renderDistance = 2000.0f;
       
       // render loop
       while (!glfwWindowShouldClose(window)) {

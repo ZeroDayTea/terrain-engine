@@ -5,15 +5,44 @@ const int CHUNK_WIDTH = 64;
 const int CHUNK_HEIGHT = 64;
 const int CHUNK_DEPTH = 64;
 
-struct Vertex {vec4 pos; vec4 norm; };
-
 layout(std430, binding = 0) readonly buffer DensityBuffer { float densities[]; };
 layout(std430, binding = 1) readonly buffer TriangleTable { int triTable[]; };
 layout(std430, binding = 2) readonly buffer EdgeTable { int edgeTable[]; };
-layout(std430, binding = 3) writeonly buffer VertexBuffer { Vertex vertices[]; };
+layout(std430, binding = 3) writeonly buffer VertexBuffer { uvec2 vertices[]; }; // stores packed vertex data
 layout(std430, binding = 5) readonly buffer OffsetBuffer { uint offsets[]; };
 
 uniform float isolevel;
+
+const uint POSITION_BITS = 10u;
+const float POS_Q_MAX = float((1u<<POSITION_BITS)-1u);
+const float INV_STEP = POS_Q_MAX / 64.0;
+
+// packing chunk-local position data to 10 bits per axis
+uint pack_position(vec3 localPos) {
+    vec3 p = clamp(localPos, vec3(0.0), vec3(64.0));
+    vec3 q = p * INV_STEP;
+    uvec3 iu = uvec3(floor(q));
+    return (iu.x & 1023u) | ((iu.y & 1023u) << 10) | ((iu.z & 1023u) << 20);
+}
+
+uvec2 sign_not_zero(vec2 v) {
+    return uvec2(v.x < 0.0 ? 0u : 1u, v.y < 0.0 ? 0u : 1u);
+}
+
+// packing normal data to oct-encoded
+uint pack_oct(vec3 n) {
+    n = normalize(n);
+    vec3 a = abs(n);
+    vec2 p = (n.z >= 0.0) ? (n.xy / (a.x + a.y + a.z))
+                          : ((1.0 - a.yx / (a.x + a.y + a.z)) * (vec2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0)));
+    p = p * 0.5 + 0.5;
+
+    const uint NB = 11u;
+    const float NQ = float((1u << NB) - 1u);
+    uint u = uint(round(clamp(p.x, 0.0, 1.0) * NQ));
+    uint v = uint(round(clamp(p.y, 0.0, 1.0) * NQ));
+    return u | (v << NB);
+}
 
 uint densityIndex(ivec3 p) {
     return uint(p.z) * uint(CHUNK_WIDTH + 1) * uint(CHUNK_HEIGHT + 1)
@@ -30,7 +59,7 @@ uint voxelIndex(ivec3 p) {
 vec3 interpolate_vertex(vec3 p1, vec3 p2, float v1, float v2) {
     if (abs(v1 - v2) < 0.00001) return p1;
     float t = (isolevel - v1) / (v2 - v1);
-    return mix(p1, p2, t);
+    return mix(p1, p2, clamp(t, 0.0, 1.0));
 }
 
 vec3 gradientNorm(ivec3 pos) {
@@ -120,16 +149,22 @@ void main() {
         vec3 v1 = interpolate_vertex(p2, p3, cv[a1], cv[b1]);
         vec3 v2 = interpolate_vertex(p4, p5, cv[a2], cv[b2]);
 
-        // basic vertex normal calculation
+        // basic vertex normal calculation with interpolation
         vec3 n1 = gradientNorm(id + ivec3(cornerOffsets[a0]));
         vec3 n2 = gradientNorm(id + ivec3(cornerOffsets[b0]));
-        float t = (isolevel - cv[a0]) / max(0.00001, (cv[b0] - cv[a0]));
-        vec3 N = normalize(mix(n1, n2, clamp(t, 0.0, 1.0)));
+        float t = clamp((isolevel - cv[a0]) / max(0.00001, (cv[b0] - cv[a0])), 0.0, 1.0);
+        vec3 N = normalize(mix(n1, n2, t));
+
+        // packed position and normal data (two 32 bit values)
+        uint P0 = pack_position(v0);
+        uint P1 = pack_position(v1);
+        uint P2 = pack_position(v2);
+        uint N0 = pack_oct(N);
 
         uint w = baseOffset + triIdx * 3u;
-        vertices[w + 0] = Vertex(vec4(v0, 1.0), vec4(N, 0.0));
-        vertices[w + 1] = Vertex(vec4(v1, 1.0), vec4(N, 0.0));
-        vertices[w + 2] = Vertex(vec4(v2, 1.0), vec4(N, 0.0));
+        vertices[w + 0] = uvec2(P0, N0);
+        vertices[w + 1] = uvec2(P1, N0);
+        vertices[w + 2] = uvec2(P2, N0);
 
         triIdx++;
     }
