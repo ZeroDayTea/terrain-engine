@@ -10,7 +10,7 @@ layout(std430, binding = 0) buffer DensityBuffer {
 
 uniform vec3 chunkWorldPos;
 
-const int terrainMode = 0; // 0 = 3d noise, 1 = 2d noise heighmap
+uniform int terrainMode = 0; // 0 = 3d noise, 1 = 2d noise heighmap
 
 // shared params
 const float DENSITY_EXP = 0.7;
@@ -19,6 +19,7 @@ const float FLOOR_OFFSET = 1.0;
 // 3d params
 const int OCTAVES_3D = 4;
 const float BASE_FREQUENCY_3D = 0.0035;
+const float BASE_AMPLITUDE_3D = 1.0;
 const float LACUNARITY_3D = 2.0;
 const float PERSISTENCE_3D = 0.5;
 const float NOISE_WEIGHT_3D = 5.0;
@@ -26,43 +27,82 @@ const float NOISE_WEIGHT_3D = 5.0;
 // 2d params
 const int OCTAVES_2D = 4;
 const float BASE_FREQUENCY_2D = 0.0035;
+const float BASE_AMPLITUDE_2D = 4.0;
 const float LACUNARITY_2D = 2.0;
 const float PERSISTENCE_2D = 0.5;
 const float NOISE_WEIGHT_2D = 5.0;
+
+uint id3D(uint x, uint y, uint z) {
+    return z * uint(CHUNK_WIDTH + 1) * uint(CHUNK_HEIGHT + 1)
+        + y * uint(CHUNK_WIDTH + 1)
+        + x;
+}
 
 
 void main() {
     ivec3 id = ivec3(gl_GlobalInvocationID);
 
-    if (id.x > CHUNK_WIDTH || id.y > CHUNK_HEIGHT || id.z > CHUNK_DEPTH) {
+    // 3D noise terrain generation
+    if (terrainMode == 0) {
+        if (id.x > CHUNK_WIDTH || id.y > CHUNK_HEIGHT || id.z > CHUNK_DEPTH) {
+            return;
+        }
+
+        vec3 worldPos = chunkWorldPos + vec3(id);
+        vec3 samplePos = worldPos * vec3(0.5, 0.25, 0.5);
+
+        float frequency = BASE_FREQUENCY_3D;
+        float amplitude = BASE_AMPLITUDE_3D;
+        float noise = 0.0;
+
+        for (int i = 0; i < OCTAVES_3D; ++i) {
+            noise += snoise(samplePos * frequency) * amplitude;
+            amplitude *= PERSISTENCE_3D;
+            frequency *= LACUNARITY_3D;
+        }
+
+        float density = -(samplePos.y + FLOOR_OFFSET) + pow(2.0, noise) * NOISE_WEIGHT_3D;
+
+        if (density > 0.0) {
+            density = pow(density, DENSITY_EXP);
+        }
+
+        uint index = id3D(uint(id.x), uint(id.y), uint(id.z));
+        densities[index] = density;
         return;
     }
+    // 2D noise terrain generation
+    else {
+        if (id.x > CHUNK_WIDTH || id.z > CHUNK_DEPTH || id.y != 0) {
+            return;
+        }
 
-    vec3 worldPos = chunkWorldPos + vec3(id);
-    vec3 samplePos = worldPos * vec3(0.5, 0.25, 0.5);
+        vec2 worldPos = (chunkWorldPos + vec3(id.x, 0.0, id.z)).xz;
+        vec2 samplePos = worldPos * vec2(0.5, 0.5);
 
-    float frequency = BASE_FREQUENCY_3D;
-    float amplitude = 1.0;
-    float noise = 0.0;
+        float frequency = BASE_FREQUENCY_2D;
+        float amplitude = BASE_AMPLITUDE_2D;
+        float noise = 0.0;
 
-    for (int i = 0; i < OCTAVES_3D; i++) {
-        noise += snoise(samplePos * frequency) * amplitude;
-        amplitude *= PERSISTENCE_3D;
-        frequency *= LACUNARITY_3D;
+        for (int i = 0; i < OCTAVES_2D; ++i) {
+            noise += snoise(samplePos * frequency) * amplitude;
+            amplitude *= PERSISTENCE_2D;
+            frequency *= LACUNARITY_2D;
+        }
+
+        float height = pow(2.0, noise) * NOISE_WEIGHT_2D;
+
+        for (uint y = 0u; y <= uint(CHUNK_HEIGHT); ++y) {
+            float worldY_scaled = (chunkWorldPos.y+ float(y)) * 0.25;
+            float density = -(worldY_scaled + FLOOR_OFFSET) + height;
+
+            if (density > 0.0) {
+                density = pow(density, DENSITY_EXP);
+            }
+
+            uint index = id3D(uint(id.x), y, uint(id.z));
+            densities[index] = density;
+        }
+        return;
     }
-
-    float density = -(samplePos.y + FLOOR_OFFSET) + pow(2, noise) * NOISE_WEIGHT_3D;
-
-    if (density > 0.0) {
-        density = pow(density, DENSITY_EXP);
-    }
-
-    // float hardFloor = 0.0;
-    // float hardFloorWeight = 0.0;
-    // if (worldPos.y < hardFloor) {
-    //     density += hardFloorWeight;
-    // }
-
-    uint index = id.z * (CHUNK_WIDTH + 1) * (CHUNK_HEIGHT + 1) + id.y * (CHUNK_WIDTH + 1) + id.x;
-    densities[index] = density;
 }

@@ -19,6 +19,8 @@ class ChunkWorker {
     GLuint densityProg = 0, mcCountProg = 0, mcEmitProg = 0;
     GLuint triSSBO = 0, edgeSSBO = 0;
 
+    const int terrainMode = 1;
+
 public:
     ChunkWorker(GLFWwindow* worker, BlockingQueue<GenJob>* in, SPSCQueue<GenResult>* out,
                 GLuint density, GLuint mcCount, GLuint mcEmit,
@@ -75,9 +77,18 @@ private:
 
             // first pass: density
             glUseProgram(densityProg);
+
             glUniform3fv(glGetUniformLocation(densityProg, "chunkWorldPos"), 1, &res.worldPos[0]);
+            glUniform1i(glGetUniformLocation(densityProg, "terrainMode"), terrainMode);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, res.densitySSBO);
-            glDispatchCompute((Chunk::CHUNK_WIDTH+1+7)/8, (Chunk::CHUNK_HEIGHT+1+7)/8, (Chunk::CHUNK_DEPTH+1+7)/8);
+
+            if (terrainMode == 0) {
+                glDispatchCompute((Chunk::CHUNK_WIDTH+1+7)/8, (Chunk::CHUNK_HEIGHT+1+7)/8, (Chunk::CHUNK_DEPTH+1+7)/8);
+            }
+            else {
+                glDispatchCompute((Chunk::CHUNK_WIDTH+1+7)/8, 1, (Chunk::CHUNK_DEPTH+1+7)/8);
+            }
+
             glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
             // second pass: count
