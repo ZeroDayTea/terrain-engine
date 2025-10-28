@@ -105,7 +105,7 @@ void World::collectFinished() {
         glBindVertexArray(0);
 
         glm::ivec3 cc(res.key.x,res.key.y,res.key.z);
-        auto [it,inserted] = activeChunks.try_emplace(cc, res.worldPos, 0,0,0);
+        auto [it,inserted] = activeChunks.try_emplace(cc, res.worldPos);
         it->second.adoptPrebuilt(vao, res.vertexSSBO, res.indirect);
 
         glDeleteBuffers(1,&res.counterSSBO);

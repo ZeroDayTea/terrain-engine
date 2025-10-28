@@ -1,24 +1,11 @@
-#pragma once
+#include "load_shaders.h"
+#include <fstream>
+#include <sstream>
+#include <iostream>
 
-struct GLUniforms {
-  GLint uModel, uView, uProj, uLightColor, uLightPos, uViewPos;
-};
-
-inline GLUniforms get_locations(GLuint prog) {
-  GLUniforms U{};
-  U.uModel = glGetUniformLocation(prog, "model");
-  U.uView = glGetUniformLocation(prog, "view");
-  U.uProj = glGetUniformLocation(prog, "projection");
-  U.uLightColor = glGetUniformLocation(prog, "lightColor");
-  U.uLightPos = glGetUniformLocation(prog, "lightPos");
-  U.uViewPos = glGetUniformLocation(prog, "viewPos");
-
-  return U;
-}
-
-std::string readShaderSource(const std::string& path) {
-    std::ifstream shaderFile;
-    shaderFile.open(path);
+namespace {
+  std::string read_file(const std::string& path) {
+    std::ifstream shaderFile(path);
     if (!shaderFile.is_open()) {
         std::cout << "Failed to read shader source from file " << path << std::endl;
         exit(1);
@@ -27,10 +14,11 @@ std::string readShaderSource(const std::string& path) {
     shaderStream << shaderFile.rdbuf();
     shaderFile.close();
     return shaderStream.str();
+  }
 }
 
 // shader compilation for compute shaders
-unsigned int compileComputeShader(const std::string& shaderCode, const std::string& name) {
+unsigned int compile_compute_shader(const std::string& shaderCode, const std::string& name) {
     const char* cShaderSource = shaderCode.c_str();
 
     unsigned int compute = glCreateShader(GL_COMPUTE_SHADER);
@@ -63,20 +51,20 @@ unsigned int compileComputeShader(const std::string& shaderCode, const std::stri
 
 // single file compute shader
 unsigned int generate_compute_program(const char* computePath) {
-    std::string shaderCode = readShaderSource(computePath);
-    return compileComputeShader(shaderCode, computePath);
+    std::string shaderCode = read_file(computePath);
+    return compile_compute_shader(shaderCode, computePath);
 }
 
 // computer shader with include file
 unsigned int generate_compute_program(const char* includePath, const char* computePath) {
-    std::string includeShaderCode = readShaderSource(includePath);
-    std::string computeShaderCode = readShaderSource(computePath);
+    std::string includeShaderCode = read_file(includePath);
+    std::string computeShaderCode = read_file(computePath);
     std::string combinedCode = "#version 430 core\n" + includeShaderCode + "\n" + computeShaderCode;
-    return compileComputeShader(combinedCode, std::string(includePath) + " + " + computePath);
+    return compile_compute_shader(combinedCode, std::string(includePath) + " + " + computePath);
 }
 
 // vertex and fragment shader compile
-unsigned int compileShader(GLenum shaderType, const std::string& source, const std::string& typeName) {
+unsigned int compile_shader(GLenum shaderType, const std::string& source, const std::string& typeName) {
     const char* shaderSource = source.c_str();
     unsigned int shader = glCreateShader(shaderType);
     glShaderSource(shader, 1, &shaderSource, NULL);
@@ -95,11 +83,11 @@ unsigned int compileShader(GLenum shaderType, const std::string& source, const s
 }
 
 unsigned int generate_shader_program() {
-    std::string vertexSource = readShaderSource("../shaders/shader.vs");
-    std::string fragmentSource = readShaderSource("../shaders/shader.fs");
+    std::string vertexSource = read_file("../shaders/shader.vs");
+    std::string fragmentSource = read_file("../shaders/shader.fs");
 
-    unsigned int vertexShader = compileShader(GL_VERTEX_SHADER, vertexSource, "Vertex");
-    unsigned int fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentSource, "Fragment");
+    unsigned int vertexShader = compile_shader(GL_VERTEX_SHADER, vertexSource, "Vertex");
+    unsigned int fragmentShader = compile_shader(GL_FRAGMENT_SHADER, fragmentSource, "Fragment");
 
     // Link shaders into shader program
     unsigned int shaderProgram = glCreateProgram();
@@ -121,3 +109,4 @@ unsigned int generate_shader_program() {
 
     return shaderProgram;
 }
+

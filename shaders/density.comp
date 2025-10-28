@@ -90,7 +90,7 @@ void main() {
             frequency *= LACUNARITY_2D;
         }
 
-        float height = pow(2.0, noise) * NOISE_WEIGHT_2D;
+        float height = pow(1.6, noise) * NOISE_WEIGHT_2D;
 
         for (uint y = 0u; y <= uint(CHUNK_HEIGHT); ++y) {
             float worldY_scaled = (chunkWorldPos.y+ float(y)) * 0.25;

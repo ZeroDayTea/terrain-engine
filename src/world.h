@@ -6,8 +6,9 @@
 #include <glm/glm.hpp>
 #include "frustum.h"
 #include "chunk.h"
-#include <job_queues.h>
-#include <worker_types.h>
+#include "job_queues.h"
+#include "worker_types.h"
+#include "config.h"
 
 struct Vec3Compare {
     bool operator()(const glm::ivec3& a, const glm::ivec3& b) const {
@@ -38,7 +39,7 @@ private:
     std::map<glm::ivec3, Chunk, Vec3Compare> activeChunks;
     std::unordered_set<long long> requestedKeys;
 
-    int viewDistance = 6;
+    int viewDistance = Config::VIEW_DISTANCE;
 
     unsigned int densityProgram;
     unsigned int mcCountProgram;
