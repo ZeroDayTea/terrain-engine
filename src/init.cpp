@@ -2,15 +2,15 @@
 #include "camera.h"
 #include <iostream>
 
-const unsigned int SCREEN_WIDTH = 1920;
-const unsigned int SCREEN_HEIGHT = 1080;
+const unsigned int SCREEN_WIDTH = Config::SCREEN_WIDTH;
+const unsigned int SCREEN_HEIGHT = Config::SCREEN_HEIGHT;
 
 namespace {
     float lastX = SCREEN_WIDTH / 2.0f;
     float lastY = SCREEN_HEIGHT / 2.0f;
 
     bool firstMouse = true;
-    const float MOUSE_SENSITIVITY = 0.05f;
+    bool cursorCaptured = true;
 
     Camera camera(glm::vec3(16.0f, 20.0f, 24.0f));
 }
@@ -20,6 +20,8 @@ Camera& get_camera() {
 }
 
 void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
+  if (!cursorCaptured) return;
+
   float xpos = static_cast<float>(xposIn);
   float ypos = static_cast<float>(yposIn);
 
@@ -35,8 +37,8 @@ void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
   lastX = xpos;
   lastY = ypos;
 
-  xoffset *= MOUSE_SENSITIVITY;
-  yoffset *= MOUSE_SENSITIVITY;
+  xoffset *= Config::MOUSE_SENSITIVITY;
+  yoffset *= Config::MOUSE_SENSITIVITY;
 
   camera.ProcessMouseMovement(xoffset, yoffset);
 }
@@ -74,6 +76,12 @@ GLFWwindow *glfw_initialization() {
   glfwSetScrollCallback(window, scroll_callback);
   // glfwSetKeyCallback(window, key_callback);
   // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+  // fps camera
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  if (glfwRawMouseMotionSupported()) {
+    glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+  }
 
   // loadl opengl function pointers
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {

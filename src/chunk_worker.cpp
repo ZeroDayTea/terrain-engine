@@ -88,7 +88,7 @@ void ChunkWorker::run() {
 
         // second pass: count
         glUseProgram(mcCountProg);
-        glUniform1f(glGetUniformLocation(mcCountProg, "isolevel"), 0.0f);
+        glUniform1f(glGetUniformLocation(mcCountProg, "isolevel"), Config::ISOLEVEL);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, res.densitySSBO);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, triSSBO);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, edgeSSBO);
@@ -117,7 +117,7 @@ void ChunkWorker::run() {
 
         // third pass: emit (packed uvec2 vertices)
         glUseProgram(mcEmitProg);
-        glUniform1f(glGetUniformLocation(mcEmitProg, "isolevel"), 0.0f);
+        glUniform1f(glGetUniformLocation(mcEmitProg, "isolevel"), Config::ISOLEVEL);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, res.densitySSBO);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, triSSBO);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, edgeSSBO);

@@ -9,7 +9,6 @@ namespace Config {
     constexpr int CHUNK_DEPTH = 64;
 
     constexpr int VIEW_DISTANCE = 6;
-    constexpr int VERTICAL_VIEW_DISTANCE = 4;
     constexpr float ISOLEVEL = 0.0f;
 
     constexpr float RENDER_DISTANCE = 2000.0f;
@@ -17,7 +16,7 @@ namespace Config {
     constexpr float FOV = 45.0f;
 
     constexpr float CAMERA_SPEED = 20.0f;
-    constexpr float MOUSE_SENSITIVITY = 0.05f;
+    constexpr float MOUSE_SENSITIVITY = 2.0f;
 
     const char* const SHADER_DIR = "../shaders/";
 }

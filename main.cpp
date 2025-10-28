@@ -82,47 +82,49 @@ int main() {
     ChunkWorker worker(worker_window, &genIn, &genOut, densityComputeProgram, mcCountComputeProgram, mcEmitComputeProgram, g_triSSBO, g_edgeSSBO);
     worker.start();
 
-    // create world
-    World world(densityComputeProgram, mcCountComputeProgram, mcEmitComputeProgram, &genIn, &genOut);
+    {
+        // create world
+        World world(densityComputeProgram, mcCountComputeProgram, mcEmitComputeProgram, &genIn, &genOut);
 
-    // sun-like lighting
-    glm::vec3 lightColor(1.0f, 0.95f, 0.0f);
-    glm::vec3 lightPos(24.0f, 50.0f, 24.0f);
+        // sun-like lighting
+        glm::vec3 lightColor(1.0f, 0.95f, 0.9f);
+        glm::vec3 lightPos(24.0f, 50.0f, 24.0f);
 
-    // render loop
-    while (!glfwWindowShouldClose(window)) {
-        float currentFrame = static_cast<float>(glfwGetTime());
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
+        // render loop
+        while (!glfwWindowShouldClose(window)) {
+            float currentFrame = static_cast<float>(glfwGetTime());
+            deltaTime = currentFrame - lastFrame;
+            lastFrame = currentFrame;
 
-        processInput(window, camera, deltaTime);
-        world.update(camera.Position);
-        world.collectFinished();
+            processInput(window, camera, deltaTime);
+            world.update(camera.Position);
+            world.collectFinished();
 
-        // sky blue color
-        glClearColor(0.5f, 0.7f, 0.9f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            // sky blue color
+            glClearColor(0.5f, 0.7f, 0.9f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glUseProgram(shaderProgram);
+            glUseProgram(shaderProgram);
 
-        glm::mat4 view = camera.GetViewMatrix();
-        glm::mat4 projection = glm::perspective(
-            glm::radians(camera.Zoom),
-            (float)Config::SCREEN_WIDTH / (float)Config::SCREEN_HEIGHT,
-            Config::NEAR_PLANE,
-            Config::RENDER_DISTANCE); // setting near-plane and far-plane
+            glm::mat4 view = camera.GetViewMatrix();
+            glm::mat4 projection = glm::perspective(
+                glm::radians(camera.Zoom),
+                (float)Config::SCREEN_WIDTH / (float)Config::SCREEN_HEIGHT,
+                Config::NEAR_PLANE,
+                Config::RENDER_DISTANCE); // setting near-plane and far-plane
 
-        glUniformMatrix4fv(U.uView, 1, GL_FALSE, &view[0][0]);
-        glUniformMatrix4fv(U.uProj, 1, GL_FALSE, &projection[0][0]);
-        glUniform3fv(U.uLightColor, 1, &lightColor[0]);
-        glUniform3fv(U.uLightPos, 1, &lightPos[0]);
-        glUniform3fv(U.uViewPos, 1, &camera.Position[0]);
+            glUniformMatrix4fv(U.uView, 1, GL_FALSE, &view[0][0]);
+            glUniformMatrix4fv(U.uProj, 1, GL_FALSE, &projection[0][0]);
+            glUniform3fv(U.uLightColor, 1, &lightColor[0]);
+            glUniform3fv(U.uLightPos, 1, &lightPos[0]);
+            glUniform3fv(U.uViewPos, 1, &camera.Position[0]);
 
-        Frustum fr = make_frustum(projection * view);
-        world.render(shaderProgram, fr, U.uModel);
+            Frustum fr = make_frustum(projection * view);
+            world.render(shaderProgram, fr, U.uModel);
 
-        glfwSwapBuffers(window);
-        glfwPollEvents();
+            glfwSwapBuffers(window);
+            glfwPollEvents();
+        }
     }
 
     worker.shutdown();
@@ -132,6 +134,7 @@ int main() {
     glDeleteProgram(mcEmitComputeProgram);
     glDeleteBuffers(1, &g_triSSBO);
     glDeleteBuffers(1, &g_edgeSSBO);
+    glDeleteTextures(1, &noiseTex);
 
     glfwTerminate();
     return 0;
